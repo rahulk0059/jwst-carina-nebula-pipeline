@@ -1,0 +1,12 @@
+# Normalise text to LF in the repository; core.autocrlf=true then hands CRLF
+# to the Windows working tree, which is what silences the checkout warning.
+# All 56 text blobs are already LF, so no `git add --renormalize .` is needed.
+* text=auto
+
+# Binary: never let line-ending detection touch these. out/grid.fits is
+# currently binary only by NUL-byte sniffing, which is fragile to pin down.
+*.fits binary
+*.png  binary
+*.f32  binary
+*.u16  binary
+*.pkl  binary
