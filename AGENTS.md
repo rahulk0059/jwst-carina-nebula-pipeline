@@ -54,12 +54,21 @@ To re-check the shipped state from scratch:
 
 ```powershell
 .venv\Scripts\python -m pytest -q tests                      # 129 pass
-.venv\Scripts\python -m jwst_stack.cli verify --outdir out   # disk truth
+.venv\Scripts\python -m jwst_stack.cli verify --outdir out   # exits 1 by design, see note
 .venv\Scripts\python -m jwst_stack.cli compare --tiled `
   --stack out\f187n_all_detectors_mosaic.fits `
   --i2d "C:\data\jwst_i2d\mastDownload\JWST\jw02731-o001_t017_nircam_clear-f187n\jw02731-o001_t017_nircam_clear-f187n_i2d.fits" `
   --outdir out                                               # ~4 min, expect 0.0647 px
 ```
+
+`verify` is left unscoped here on purpose - the manifests are whole-program disk
+truth, so this scan is what reports the state of every filter. It flags the 120
+long-wave cal and 566 per-exposure i2d products that were deliberately never
+fetched as `missing`, prints `VERIFY FAILED: 686 problem(s) need attention`, and
+**exits 1**. That is the healthy result, not corruption: what must be zero is
+`size_mismatch` and `extra`. For a zero exit code, scope the gate to what you
+actually fetched, e.g.
+`verify --require F187N --require-kind CAL --outdir out`.
 
 ## What's next
 
@@ -292,7 +301,7 @@ If it is ever attempted, the diagnostic to re-run afterwards is
   via `resolve_stage2_filters`, and the plan carries `plan["filters"]` so
   `format_stage2_plan` labels with the filter actually planned instead of a
   baked-in string. The old label also hard-coded the *count* ("all 160"), which
-  is wrong for the 40-file single-visit filters. Regression tests:
+  is wrong for the 40-file long-wave filters. Regression tests:
   `test_plan_stage2_respects_filters`,
   `test_resolve_stage2_filters_prefers_requested`,
   `test_run_stage2_plan_output_labels_requested_filter`.
