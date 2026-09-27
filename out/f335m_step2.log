@@ -1,0 +1,43 @@
+step 2 gauge probe, filter=F335M detectors=nrcalong,nrcblong
+i2d shape 4178 x 7065, measured scale 0.062904 arcsec/px
+match radius 0.3 arcsec = 4.77 i2d px
+masked 709189 of 29517570 i2d px as uncovered
+detecting stars in the official i2d ...
+  6133 stars in the i2d
+  v1_nrcalong: 400 frame stars, 348 matched
+  v1_nrcblong: 400 frame stars, 378 matched
+  v2_nrcalong: 400 frame stars, 396 matched
+  v2_nrcblong: 400 frame stars, 385 matched
+  v3_nrcalong: 400 frame stars, 383 matched
+  v3_nrcblong: 400 frame stars, 390 matched
+  v4_nrcalong: 400 frame stars, 370 matched
+  v4_nrcblong: 400 frame stars, 355 matched
+
+per (visit x detector) raw frame WCS vs official i2d, in i2d px:
+  visit detector  n_match    dx_med    dy_med   |offset|    scatter
+  v1   nrcalong    348   -0.0041   -0.0009   0.0716    0.0347
+  v1   nrcblong    378   +0.0147   -0.0011   0.0671    0.0346
+  v2   nrcalong    396   +0.1009   -0.2400   0.2609    0.0565
+  v2   nrcblong    385   +0.1741   -0.3064   0.3543    0.0658
+  v3   nrcalong    383   +0.1499   -0.1607   0.2323    0.0660
+  v3   nrcblong    390   +0.1901   -0.2191   0.2965    0.0683
+  v4   nrcalong    370   +0.3050   -0.3740   0.4914    0.0562
+  v4   nrcblong    355   +0.3146   -0.3855   0.5022    0.0464
+
+per-visit summary across the 2 detectors (median of medians):
+  visit   dx_med   dy_med  |offset|   spread(max-min)  n_det
+  v1    +0.0053   -0.0010   0.0054      0.0045        2   (internal 0.0094)
+  v2    +0.1375   -0.2732   0.3058      0.0933        2   (internal 0.0494)
+  v3    +0.1700   -0.1899   0.2549      0.0642        2   (internal 0.0354)
+  v4    +0.3098   -0.3798   0.4901      0.0108        2   (internal 0.0075)
+
+anchor by per-visit median: visit 1 (0.0054 i2d px = 0.00034 arcsec)
+
+projected raw-header residuals AFTER correcting the per-detector visit
+step and anchoring visit 1 (2-detector mean per visit):
+  v1: 0.0000 i2d px = 0.00000 arcsec   <- anchor
+  v2: 0.3026 i2d px = 0.01903 arcsec
+  v3: 0.2506 i2d px = 0.01576 arcsec
+  v4: 0.4860 i2d px = 0.03057 arcsec
+  worst visit: 0.4901 px raw
+wrote out\f335m_step2_detectors.json (8 groups)

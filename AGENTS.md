@@ -20,13 +20,26 @@ The heavy `jwst` package is **not** required. WCS comes from the `SCI` header
 progress.** This is the cold-start summary; the sections after it hold the
 evidence, and the per-filter sections are the authority for their own numbers.
 
-| filter | mosaic (2.11 GB each) | gauge, measured | median offset vs official i2d | within 0.5 px | matched stars |
-|--------|----------------------|-----------------|-------------------------------|--------------|---------------|
-| F200W | `out/f200w_all_detectors_mosaic.fits` | visit 1, 0.0101 px, `explicit` | **0.0730 px** | 99.0% | 5882 / 6000 |
-| F090W | `out/f090w_all_detectors_mosaic.fits` | visit 1, 0.031 px, `explicit` | **0.1384 px** | 78.5% | 5428 / 6000 |
-| F187N | `out/f187n_all_detectors_mosaic.fits` | visit 1, 0.0060 px, `explicit` | **0.0647 px** | 99.3% | 5908 / 6000 |
+| filter | mosaic | gauge, measured | median offset vs official i2d | within 0.5 px | matched stars |
+|--------|--------|-----------------|-------------------------------|--------------|---------------|
+| F200W | `out/f200w_all_detectors_mosaic.fits` (2.11 GB) | visit 1, 0.0101 px, `explicit` | **0.0730 px** | 99.0% | 5882 / 6000 |
+| F090W | `out/f090w_all_detectors_mosaic.fits` (2.11 GB) | visit 1, 0.031 px, `explicit` | **0.1384 px** | 78.5% | 5428 / 6000 |
+| F187N | `out/f187n_all_detectors_mosaic.fits` (2.11 GB) | visit 1, 0.0060 px, `explicit` | **0.0647 px** | 99.3% | 5908 / 6000 |
+| F335M (native grid) | `out/f335m_all_detectors_mosaic.fits` (0.52 GB) | visit 1, 0.0054 px, `explicit` | **0.1000 px** = 0.00629" | 98.7% | 5619 / 6000 |
+| F335M (cross-check) | `out/f335m_all_detectors_mosaic_0031grid.fits` (2.11 GB) | visit 1, `explicit` | **0.1801 px** = 0.00558" | 83.6% | 5432 / 6000 |
 
-Shared properties of all three: one grid (`out/grid.fits`, ny 15895 x
+**F335M is the odd one out and the reason is measured, not guessed.** It is
+long-wave (2 detectors, native 0.0629"/px, not 0.031), so its pixels are 2.03x
+larger and its absolute accuracy is ~3x worse in arcsec (0.0063" vs
+0.0016-0.0020"). Its 0.031-grid cross-check exists only to make it
+unit-comparable with the other three; cite the **native 0.1000 px / 0.00629"**
+as F335M's accuracy, because the fine grid inflates its scatter ~2x by
+upsampling the reference. Its residual is dominated by an unidentifiable
+per-detector offset (14 cross-visit edges, all within one detector) - see
+"F335M measured run". `out/grid.fits` is unchanged; F335M's own grid is
+`out/grid_f335m/grid.fits`.
+
+Shared properties of the three short-wave mosaics: one grid (`out/grid.fits`, ny 15895 x
 nx 22130), 352 tiles at 1024 px, 120.2-120.3 Mpx covered (34.2% of the grid),
 max depth 17, ~30-36 min build each, peak RSS 4.47-4.58 GB. Each registration
 JSON records `gauge_visit: 1` with `gauge_source: explicit`, because the gauge
@@ -74,22 +87,16 @@ actually fetched, e.g.
 
 Nothing below is needed to use what is shipped. Pick one.
 
-1. **Finish F335M: measure the gauge, then build the mosaic twice.** The data
-   is now on disk (40 cal + the 944 MB combined i2d, 5.65 GB) and the scales
-   are measured, so the remaining work is the two-grid build. An earlier
-   version of this item described the long-wave filters as single-visit
-   short-wave, which was wrong on every count; see "F335M/F444W are long-wave,
-   and 4 visits" and "F335M: measured scales and the two-grid decision" below
-   before planning any of it. The immediate prerequisite is **step 2 of the
-   five-step procedure**: measure the raw frame WCSs against the F335M
-   combined i2d for both long-wave detectors in all 4 visits, pick the ~0
-   visit, and pass `--gauge-visit` explicitly - the gauge problem returns,
-   because there are 4 visits. Then build on `out/grid_f335m/grid.fits`
-   (native 0.0629, the clean number) **and** on `out/grid.fits` (0.031, the
-   comparable number), and validate both. **F335M is the clean way in** (no
-   pupil variant); **F444W is still untouched and remains blocked** on a
+1. **F335M is done: measured, built on both grids, validated on both.** Result
+   is **0.1000 px / 0.00629 arcsec** on the native 0.0629 grid, with the 0.031
+   cross-check at 0.1801 px / 0.00558 arcsec confirming the astrometry is grid
+   independent while showing the fine grid inflates the scatter ~2x. See
+   "F335M measured run" for the numbers, the commands, and the measured cause
+   of F335M's ~3x-worse arcsec accuracy (an unidentifiable per-detector offset,
+   not a bug). Read that before quoting F335M anywhere.
+   **F444W is the remaining long-wave filter and is still blocked** on a
    `--pupil` selector, since `--filter F444W` cannot separate it from
-   F444W;F470N.
+   F444W;F470N. Nothing about the F335M work unblocks it.
 2. **Rotation-aware per-group registration.** Scoped, deliberately **not**
    implemented - see "Deferred: rotation-aware per-group registration". Worth
    ~20% of F090W's residual and nothing of the unidentifiable inter-detector
@@ -931,7 +938,7 @@ possible. Combined all-visit products in program 2731:
 | F090W | `jw02731-o001_t017_nircam_clear-f090w_i2d.fits` (5,415,445,440 B) | 160 | yes - **done** |
 | F187N | `jw02731-o001_t017_nircam_clear-f187n_i2d.fits` (5,416,456,320 B) | 160 | yes - **done** |
 | F200W | `jw02731-o001_t017_nircam_clear-f200w_i2d.fits` (5,420,381,760 B) | 160 | yes - **done** |
-| F335M | `jw02731-o001_t017_nircam_clear-f335m_i2d.fits` (944,968,320 B) | 40 (long-wave, 4 visits) | no - 2 long-wave detectors; **on disk, mosaic pending** |
+| F335M | `jw02731-o001_t017_nircam_clear-f335m_i2d.fits` (944,968,320 B) | 40 (long-wave, 4 visits) | no - 2 long-wave detectors; **done - 0.1000 px native, 0.1801 px on the 0.031 grid** |
 | F444W | `jw02731-o001_t017_nircam_clear-f444w_i2d.fits` (944,968,320 B) | 40 (long-wave, 4 visits) | no - 2 long-wave detectors |
 | F444W;F470N | `jw02731-o001_t017_nircam_f444w-f470n_i2d.fits` (944,254,080 B) | 40 (long-wave, 4 visits) | no - 2 long-wave detectors |
 
@@ -1056,14 +1063,129 @@ compares per-filter residuals. Hence the plan: **primary** result on the
 native 0.0629 grid, **plus** a second mosaic on the existing 0.031 grid run
 through the identical procedure, so F335M has both a clean number and a
 same-grid number comparable with the shipped three. Both must be built from the
-same measured gauge. **Neither mosaic exists yet** - the gauge step below is
-still a prerequisite.
+same measured gauge. **Both mosaics now exist** - see "F335M measured run"
+below.
 
 **Verified after the download**, and the prediction held: the unscoped problem
 count fell from 686 to **645** (80 cal + 565 i2d `missing`), with 0 `extra` and
 0 `size_mismatch`. The 40 F335M cal files reported `ok`, not `extra`, confirming
 they were already rows in the plan. `out/grid.fits` is byte-identical to its
 committed version.
+
+### F335M measured run
+
+Step 2 first, as the five-step procedure requires, with the radius set in
+arcsec and converted at the measured scale - 0.3 arcsec = 4.77 px at 0.0629,
+not the 3.2 px the same radius gives at short-wave scale. 6133 stars detected
+in the i2d; 348-396 matched per group, far above the 20 floor, so every group
+is measured. The anchor is unambiguous.
+
+| visit | dx | dy | abs offset | detector spread | internal rms |
+|-------|----|----|------------|-----------------|--------------|
+| v1 | +0.0053 | -0.0010 | **0.0054** | 0.0045 | 0.0094 |
+| v2 | +0.1375 | -0.2732 | 0.3058 | 0.0933 | 0.0494 |
+| v3 | +0.1700 | -0.1899 | 0.2549 | 0.0642 | 0.0354 |
+| v4 | +0.3098 | -0.3798 | 0.4901 | 0.0108 | 0.0075 |
+
+`v1` is the anchor at 0.0054 px = 0.00034 arcsec, so `--gauge-visit 1` was
+passed explicitly. Record: `out/f335m_step2.log`, `out/f335m_step2_detectors.json`.
+
+Both builds, same command apart from `--grid`/`--out`/`--registration`:
+
+```
+.venv\Scripts\python -m jwst_stack.cli mosaic `
+  --detector nrcalong nrcblong --filter F335M `
+  --grid out\grid_f335m\grid.fits --out out\f335m_all_detectors_mosaic.fits `
+  --registration out\mosaic_registration_f335m.json --scratch-dir out `
+  --recompute-registration --gauge-visit 1
+```
+
+```
+.venv\Scripts\python -m jwst_stack.cli mosaic `
+  --detector nrcalong nrcblong --filter F335M `
+  --grid out\grid.fits --out out\f335m_all_detectors_mosaic_0031grid.fits `
+  --registration out\mosaic_registration_f335m_0031grid.json --scratch-dir out `
+  --recompute-registration --gauge-visit 1
+```
+
+| quantity | native 0.0629 | cross-check 0.0310 |
+|----------|----------------|--------------------|
+| frames combined | 40/40 | 40/40 |
+| grid | 7864 x 10937 (86 Mpx) | 15895 x 22130 (352 Mpx) |
+| tiles | 88 | 352 |
+| covered pixels | 28,779,759 (33.5%) | 118,483,154 (33.7%) |
+| max depth | 15 | 15 |
+| cross-visit edges | 14 | 14 |
+| cross-visit residual rms | 0.051 px | 0.103 px |
+| frames shifted | 32/39, median 0.0502 px | 32/39, median 0.1009 px |
+| wall time | 7.6 min | 22.6 min |
+| peak RSS | 2.93 GB | 8.86 GB |
+| output size | 0.52 GB | 2.11 GB |
+
+Then `compare --tiled` against the same i2d, plus `--write-diff` on the native
+one for parity with F200W.
+
+| star offsets | native 0.0629 | cross-check 0.0310 |
+|--------------|----------------|--------------------|
+| matched | 5619 / 6000 | 5432 / 6000 |
+| median dx, dy | -0.0347, -0.0159 | -0.0577, -0.0172 |
+| **median abs offset** | **0.1000 px** | **0.1801 px** |
+| ...in arcsec | **0.00629** | **0.00558** |
+| offset MAD | 0.0828 | 0.1592 |
+| 16-84 pct | 0.0396 / 0.2456 | 0.0732 / 0.5053 |
+| rms dx, dy | 0.1879, 0.1904 | 0.4197, 0.4886 |
+| ...in arcsec | 0.0118 | 0.0130 |
+| within 0.5 px | 98.7% | 83.6% |
+| i2d coverage | 97.5% | 401.4% |
+| wall time | 0.9 min | 3.6 min |
+
+**What the two grids establish.** They are the same astrometry, resampled: the
+cross-visit residual rms and every applied step scale by exactly 2.029
+(0.051 -> 0.103 px; v2 0.418 -> 0.849; v3 0.480 -> 0.975; v4 0.480 -> 0.972),
+and the covered fraction is 33.5% vs 33.7%. So the second grid is a genuine
+independent check of the first, and it passes. The median agrees in arcsec to
+11% (0.00629 vs 0.00558), which is the useful result: **the grid choice does
+not bias the headline number**, so the cross-filter comparison is legitimate.
+
+**But the native grid is the better instrument, and by more than the median
+shows.** Everything about the *spread* degrades on the fine grid, in the
+predicted direction: p84 0.246 -> 0.505 px, rms 0.0118 -> 0.0130 arcsec,
+within-0.5 px 98.7% -> 83.6%, matched 5619 -> 5432. That is the upsampled
+reference biting - the i2d is 2.03x coarser than the fine grid, so
+`reproject` interpolates it and its centroids wander. **Report F335M as
+0.0063 arcsec (0.1000 px native) and cite 0.1801 px / 0.0056 arcsec only as
+the same-grid figure for the floor table.** Reporting the fine-grid number as
+F335M's accuracy would understate its scatter by ~2x.
+
+**F335M is ~3x worse in arcsec than the three short-wave filters** (0.0063 vs
+0.0016-0.0020 arcsec), and the cause is measured, not guessed. The cross-visit
+solve got only **14 edges over 8 groups**, and every one of them connects the
+same detector in two different visits - because NRCALONG and NRCBLONG tile
+disjoint sky, there is no `nrcalong` <-> `nrcblong` edge at all. The
+per-detector offset is therefore a free parameter, and the single per-visit
+step the solver reports has to compromise between two detectors that step 2
+measures as differing by 0.064-0.093 px at v2/v3. Comparing the internal solve
+against the i2d-referenced step-2 steps, convention-independent:
+
+| visit | step 2 vs i2d | internal cross-visit solve | disagreement |
+|-------|---------------|---------------------------|--------------|
+| v1 | 0.0000 (anchor) | 0.0000 (anchor) | - |
+| v2 | 0.3026 | 0.4184 | 0.116 |
+| v3 | 0.2506 | 0.4798 | **0.229** |
+| v4 | 0.4860 | 0.4802 | 0.006 |
+
+v4 agrees to 0.006 px, v3 disagrees by 0.229 native px. This is the
+identifiability wall showing up in the headline number, and it is the reason
+F335M's residual is ~3x the short-wave floor. **It is not fixable inside the
+mosaic**: closing it would mean gauging the per-detector offsets to the
+official i2d rather than to the internal consensus, which is a weaker test by
+construction - the same mistake as "gauging to the consensus", one level up.
+Recorded here as a known limit, not chased.
+
+Background is a separate matter and is *not* a grid artifact: the mosaic is
+0.25 MJy/sr brighter than the i2d (5.879 vs 5.646, +4.5%) and the offset is
+identical on both grids (0.2517 vs 0.2513), so it is a flux-calibration
+difference in F335M, not anything astrometric.
 
 > **An interrupted download can leave a short file that looks complete.** The
 > downloader writes straight to the final path - there is no `.part`/`.tmp`/
