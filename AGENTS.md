@@ -23,7 +23,7 @@ evidence, and the per-filter sections are the authority for their own numbers.
 | filter | mosaic (2.11 GB each) | gauge, measured | median offset vs official i2d | within 0.5 px | matched stars |
 |--------|----------------------|-----------------|-------------------------------|--------------|---------------|
 | F200W | `out/f200w_all_detectors_mosaic.fits` | visit 1, 0.0101 px, `explicit` | **0.0730 px** | 99.0% | 5882 / 6000 |
-| F090W | `out/f090w_all_detectors_mosaic.fits` | visit 1, 0.017 px, `explicit` | **0.1384 px** | 78.5% | 5428 / 6000 |
+| F090W | `out/f090w_all_detectors_mosaic.fits` | visit 1, 0.031 px, `explicit` | **0.1384 px** | 78.5% | 5428 / 6000 |
 | F187N | `out/f187n_all_detectors_mosaic.fits` | visit 1, 0.0060 px, `explicit` | **0.0647 px** | 99.3% | 5908 / 6000 |
 
 Shared properties of all three: one grid (`out/grid.fits`, ny 15895 x
@@ -36,7 +36,7 @@ Three things a newcomer must not get wrong:
 
 - **Do not re-gauge to the i2d.** The correction is relative, its absolute
   origin is a choice, and each filter's anchor was measured independently
-  (0.0101 / 0.017 / 0.0060 px). Importing per-detector offsets from the same
+  (0.0101 / 0.031 / 0.0060 px). Importing per-detector offsets from the same
   i2d would drive the reported residuals to ~0 *by construction* and destroy
   the only evidence that the pointing error exists. See "The gauge is the
   part that is easy to get wrong".
@@ -512,12 +512,38 @@ downstream.
 
 | filter | v1 | v2 | v3 | v4 | within-visit internal rms per visit |
 |--------|----|----|----|----|--------------------------------------|
-| F200W | 0.004 | 0.721 | 0.844 | 0.940 | 0.031 / 0.032 / 0.037 / 0.031 px |
-| F090W | **0.017** | 0.528 | 0.808 | 0.925 | 0.056 / **0.274** / 0.167 / 0.057 px |
+| F200W | 0.010 | 0.719 | 0.852 | 0.936 | 0.031 / 0.032 / 0.037 / 0.031 px |
+| F090W | **0.031** | 0.613 | 0.777 | 0.922 | 0.056 / **0.274** / 0.167 / 0.057 px |
 
 (Raw offset of each visit's header WCS versus the official i2d, in i2d px,
 median over the 8 detectors. The F200W row reproduces the table above, which
 validates the method.)
+
+> **Two of these step-2 numbers do not reproduce from the artifacts on disk,
+> and the cause is unknown.** Recomputing the 8-detector median from
+> `out/f090w_step2_detectors.json` and `out/f200w_step2_detectors.json` gives
+> the values in the table above, using the same "median of medians"
+> aggregation that `out/f187n_step2.log` documents explicitly and which
+> reproduces the F187N row to every digit. The figures previously recorded
+> here were 0.017 / 0.528 / 0.808 / 0.925 (F090W) and 0.004 / 0.721 / 0.844 /
+> 0.940 (F200W). **Neither file's `step2.log` survives** - only
+> `out/f187n_step2.log` does - so a rerun with a different star sample, a
+> different aggregation, and a transcription error are all consistent with the
+> surviving evidence, and the discrepancy cannot be attributed. F187N, whose
+> log does survive, matches exactly, which is what makes the aggregation
+> question answerable at all.
+>
+> **The shipped results are unaffected.** The anchor is the visit whose offset
+> is ~0, and visit 1 is that visit under either figure, so `gauge_visit: 1`
+> stands for both filters; the 0.0730 and 0.1384 px validations are unchanged
+> and are independently reproducible from the `compare` JSONs. The per-visit
+> *pattern* also survives, which is what the rest of this section relies on:
+> visit 1 near zero, visits 2/3/4 displaced by 0.5-1.0 px, and F090W's visit-2
+> spread still the outlier at 0.27 px. Only the absolute gauge residual is in
+> question, and it is a diagnostic, not an input to the solve. F200W's spread
+> is small enough (~0.006 px) that it is plausibly a rounding-level artifact
+> rather than a real disagreement; F090W's v1/v2 are not, which is why only
+> F090W is quoted to three figures anywhere else in this file.
 
 **F200W's 8 detectors agree with each other to ~0.03 px within a visit.
 F090W's do not** - up to 0.27 px rms in visit 2. Because the detectors tile
@@ -568,13 +594,13 @@ is the open limitation above, showing up in the final residual.
 
 **Do not report the F090W 0.1384 px as a failure of the solve.** The
 pre-registered prediction was 0.1-0.2 px and the measured value is 0.1384 px;
-the anchor sits 0.017 px from the i2d, exactly as step 2 predicted, and the
-median dx/dy is zero. What the number measures is a per-detector pointing term
-that the current per-visit model does not (and, with no same-visit
-cross-detector star matches, cannot) remove. Fixing it needs a per-detector
-translation term and a way to solve it - which requires either same-visit
-cross-detector matches or an external reference that already encodes
-per-detector geometry.
+the anchor sits 0.031 px from the i2d, in line with what step 2 measures,
+and the median dx/dy is zero. What the number measures is a per-detector
+pointing term that the current per-visit model does not (and, with no
+same-visit cross-detector star matches, cannot) remove. Fixing it needs a
+per-detector translation term and a way to solve it - which requires either
+same-visit cross-detector matches or an external reference that already
+encodes per-detector geometry.
 
 > **0.1384 px is a real, currently-irreducible limit for a per-visit
 > translation model on this filter's detector geometry - not a solve failure,
@@ -855,7 +881,7 @@ Procedure, per filter, before trusting a mosaic:
    cross-match each visit against a common reference. This measures the **raw,
    uncorrected** frame WCS offsets versus the official i2d, per visit. Do this
    for **all 8 detectors** per visit, not one: a single reference frame is
-   several times noisier (F090W: 0.119 px from one nrca1 frame versus 0.017 px
+   several times noisier (F090W: 0.119 px from one nrca1 frame versus 0.031 px
    from the 8-detector median), and the per-detector spread is itself the
    quantity of interest (see the F090W section below).
 3. The visit whose offset is ~0 is the anchor. That is `--gauge-visit`.
@@ -875,7 +901,7 @@ present but the gauge was not pinned externally. Treat
 `out/mosaic_registration.json`, F090W `out/mosaic_registration_f090w.json` and
 F187N `out/mosaic_registration_f187n.json` all record `gauge_source: explicit`
 with `gauge_visit: 1`, because step 2 was done for each of those filters
-(0.0101, 0.017 and 0.0060 px).
+(0.0101, 0.031 and 0.0060 px).
 
 An external reference exists for **every** NIRCam filter, so step 2 is always
 possible. Combined all-visit products in program 2731:
