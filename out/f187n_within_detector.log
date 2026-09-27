@@ -1,0 +1,47 @@
+  visit det     n  kept |trend|med |trend|p84  trend_rms  corner_max   sig
+   v1 nrca1   304  290    0.031    0.053    0.038     0.088     9.3
+   v1 nrca2   604  556    0.009    0.021    0.014     0.039     3.4
+   v1 nrca3   309  295    0.013    0.021    0.015     0.032     3.5
+   v1 nrca4   326  314    0.018    0.026    0.020     0.040     4.1
+   v1 nrcb1   485  445    0.012    0.025    0.018     0.049     6.4
+   v1 nrcb2   150  146    0.016    0.025    0.019     0.045     2.9
+   v1 nrcb3   383  368    0.035    0.049    0.039     0.084     9.8
+   v1 nrcb4   264  255    0.018    0.035    0.027     0.083     6.6
+   v2 nrca1   157  155    0.034    0.056    0.039     0.089     4.7
+   v2 nrca2   150  146    0.012    0.020    0.015     0.036     2.3
+   v2 nrca3   164  162    0.058    0.092    0.068     0.147     8.7
+   v2 nrca4   205  199    0.043    0.069    0.052     0.103     8.5
+   v2 nrcb1   109  106    0.021    0.032    0.025     0.048     2.6
+   v2 nrcb2   346  327    0.009    0.033    0.021     0.071     3.7
+   v2 nrcb3   139  138    0.027    0.041    0.030     0.064     3.6
+   v2 nrcb4   202  197    0.029    0.045    0.034     0.070     5.7
+   v3 nrca1   297  284    0.043    0.083    0.058     0.147     8.9
+   v3 nrca2   223  217    0.021    0.043    0.029     0.078     5.7
+   v3 nrca3   161  155    0.028    0.041    0.031     0.059     4.0
+   v3 nrca4   188  179    0.026    0.041    0.032     0.088     4.5
+   v3 nrcb1   153  149    0.043    0.068    0.050     0.105     6.2
+   v3 nrcb2   171  168    0.038    0.077    0.053     0.125     8.3
+   v3 nrcb3   189  185    0.042    0.088    0.059     0.130    10.8
+   v3 nrcb4   165  163    0.045    0.071    0.053     0.123     7.9
+   v4 nrca1   269  260    0.032    0.059    0.040     0.097     9.3
+   v4 nrca2   267  264    0.021    0.037    0.026     0.052     4.8
+   v4 nrca3   313  301    0.014    0.028    0.019     0.049     4.8
+   v4 nrca4   472  435    0.010    0.021    0.015     0.040     3.5
+   v4 nrcb1   375  357    0.031    0.044    0.033     0.063     6.9
+   v4 nrcb2   293  286    0.022    0.044    0.033     0.111     8.6
+   v4 nrcb3   359  345    0.040    0.062    0.045     0.082     9.0
+   v4 nrcb4   372  358    0.025    0.043    0.030     0.073     7.9
+
+=== F187N: intra-detector field term, at star positions ===
+  groups fitted            : 32
+  median |trend| at stars   : 0.0263 px   range 0.0087-0.0583
+  84th percentile |trend|  : 0.0427 px
+  field-term significance  : median 6.0 sigma, 29/32 groups >= 3 sigma
+
+  per visit, alongside the inter-detector term from step 2:
+   v1: intra-detector median 0.0172 px  |  inter-detector 0.0199 px  |  ratio 0.87x  |  sig 5.2
+   v2: intra-detector median 0.0280 px  |  inter-detector 0.0333 px  |  ratio 0.84x  |  sig 4.2
+   v3: intra-detector median 0.0401 px  |  inter-detector 0.0418 px  |  ratio 0.96x  |  sig 7.1
+   v4: intra-detector median 0.0237 px  |  inter-detector 0.0246 px  |  ratio 0.96x  |  sig 7.4
+
+  pooled: intra 0.0263 px vs inter 0.0290 px  -> intra/inter = 0.91x

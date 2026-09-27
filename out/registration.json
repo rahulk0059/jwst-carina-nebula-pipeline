@@ -1,0 +1,57 @@
+{
+  "frames": [
+    {
+      "background_offset": -0.015416623558692333,
+      "dx": 0.020154178556140323,
+      "dy": -0.049844300007805487,
+      "exposure": 2,
+      "filename": "jw02731001004_02105_00002_nrca1_cal.fits",
+      "n_detected": 400,
+      "n_matched": 312,
+      "residual_max_px": 1.7882009550472293,
+      "residual_rms_px": 0.14246462293283577,
+      "visit": 4
+    },
+    {
+      "background_offset": -0.03169775321853607,
+      "dx": -0.042542784019588,
+      "dy": 0.025383154175187883,
+      "exposure": 3,
+      "filename": "jw02731001004_02105_00003_nrca1_cal.fits",
+      "n_detected": 400,
+      "n_matched": 197,
+      "residual_max_px": 0.9841606854856292,
+      "residual_rms_px": 0.10864430636574574,
+      "visit": 4
+    },
+    {
+      "background_offset": -0.033326236658391295,
+      "dx": 0.015245481634792668,
+      "dy": -0.1092107664037485,
+      "exposure": 4,
+      "filename": "jw02731001004_02105_00004_nrca1_cal.fits",
+      "n_detected": 400,
+      "n_matched": 91,
+      "residual_max_px": 1.8577318058266186,
+      "residual_rms_px": 0.21019585512149433,
+      "visit": 4
+    },
+    {
+      "background_offset": -0.052140034259993584,
+      "dx": -0.011011217098257475,
+      "dy": -0.06895442742774094,
+      "exposure": 5,
+      "filename": "jw02731001004_02105_00005_nrca1_cal.fits",
+      "n_detected": 400,
+      "n_matched": 74,
+      "residual_max_px": 3.0395961072417137,
+      "residual_rms_px": 0.41036960713432885,
+      "visit": 4
+    }
+  ],
+  "mean_residual_rms_px": 0.21791859788860118,
+  "median_shift_px": 0.07480009077067194,
+  "n_frames": 5,
+  "pixel_scale_arcsec": 0.031134595394130844,
+  "reference": "jw02731001004_02105_00001_nrca1_cal.fits"
+}

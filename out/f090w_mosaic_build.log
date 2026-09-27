@@ -1,0 +1,126 @@
+loaded 160 exposures (8 detector(s): NRCA1, NRCA2, NRCA3, NRCA4, NRCB1, NRCB2, NRCB3, NRCB4; filter(s): F090W)
+loaded 160 exposures
+Stage 4 mosaic pre-flight
+  grid shape         : 15895 x 22130 = 351,756,350 px (1.41 GB per float32 image)
+  frames             : 160 total, 160 intersect the grid
+  tiles              : 352 at 1024 px
+  frames per tile    : max 27, mean 5.5
+  reproject calls    : 1,934 (one per frame per overlapping tile, x2 passes if re-running)
+
+disk
+  scratch (memmap)   : 2.11 GB (SCI float32 + COVERAGE uint16, deleted after the FITS write)
+  output FITS        : 2.11 GB
+  peak disk total    : 4.22 GB
+  free disk          : 263.0 GB
+
+memory
+  frame cache        : 0.54 GB (32 frames x 17 MB)
+  one tile's overlays: 0.12 GB (worst tile, halo included)
+  estimated peak RSS : 2.47 GB (cache + overlays + sigma-clip temporaries)
+
+solving registration on mosaic-grid crops (one group per visit x detector)
+  [ 1/32] v1 nrca1 5 frames  crop 4115x3210  median |shift| 0.3277 px  mean residual rms 0.159 px
+  [ 2/32] v1 nrca2 5 frames  crop 4092x3177  median |shift| 0.3427 px  mean residual rms 0.313 px
+  [ 3/32] v1 nrca3 5 frames  crop 4152x3232  median |shift| 0.2953 px  mean residual rms 0.204 px
+  [ 4/32] v1 nrca4 5 frames  crop 4111x3197  median |shift| 0.3417 px  mean residual rms 0.255 px
+  [ 5/32] v1 nrcb1 5 frames  crop 4103x3194  median |shift| 0.3371 px  mean residual rms 0.226 px
+  [ 6/32] v1 nrcb2 5 frames  crop 4151x3241  median |shift| 0.3764 px  mean residual rms 0.438 px
+  [ 7/32] v1 nrcb3 5 frames  crop 4093x3182  median |shift| 0.3495 px  mean residual rms 0.189 px
+  [ 8/32] v1 nrcb4 5 frames  crop 4127x3231  median |shift| 0.3324 px  mean residual rms 0.167 px
+  [ 9/32] v2 nrca1 5 frames  crop 4114x3210  median |shift| 0.0995 px  mean residual rms 0.143 px
+  [10/32] v2 nrca2 5 frames  crop 4092x3178  median |shift| 0.1170 px  mean residual rms 0.146 px
+  [11/32] v2 nrca3 5 frames  crop 4152x3232  median |shift| 0.1172 px  mean residual rms 0.175 px
+  [12/32] v2 nrca4 5 frames  crop 4111x3197  median |shift| 0.0895 px  mean residual rms 0.220 px
+  [13/32] v2 nrcb1 5 frames  crop 4103x3194  median |shift| 0.0635 px  mean residual rms 0.170 px
+  [14/32] v2 nrcb2 5 frames  crop 4152x3241  median |shift| 0.1298 px  mean residual rms 0.378 px
+  [15/32] v2 nrcb3 5 frames  crop 4092x3182  median |shift| 0.0724 px  mean residual rms 0.181 px
+  [16/32] v2 nrcb4 5 frames  crop 4127x3230  median |shift| 0.0674 px  mean residual rms 0.315 px
+  [17/32] v3 nrca1 5 frames  crop 4115x3210  median |shift| 0.1214 px  mean residual rms 0.187 px
+  [18/32] v3 nrca2 5 frames  crop 4093x3177  median |shift| 0.2019 px  mean residual rms 0.291 px
+  [19/32] v3 nrca3 5 frames  crop 4152x3232  median |shift| 0.1877 px  mean residual rms 0.198 px
+  [20/32] v3 nrca4 5 frames  crop 4111x3197  median |shift| 0.0845 px  mean residual rms 0.253 px
+  [21/32] v3 nrcb1 5 frames  crop 4103x3194  median |shift| 0.0934 px  mean residual rms 0.150 px
+  [22/32] v3 nrcb2 5 frames  crop 4151x3241  median |shift| 0.0566 px  mean residual rms 0.201 px
+  [23/32] v3 nrcb3 5 frames  crop 4093x3182  median |shift| 0.1335 px  mean residual rms 0.195 px
+  [24/32] v3 nrcb4 5 frames  crop 4127x3231  median |shift| 0.1094 px  mean residual rms 0.165 px
+  [25/32] v4 nrca1 5 frames  crop 4115x3210  median |shift| 0.1132 px  mean residual rms 0.232 px
+  [26/32] v4 nrca2 5 frames  crop 4092x3177  median |shift| 0.1719 px  mean residual rms 0.144 px
+  [27/32] v4 nrca3 5 frames  crop 4152x3233  median |shift| 0.1834 px  mean residual rms 0.136 px
+  [28/32] v4 nrca4 5 frames  crop 4110x3197  median |shift| 0.0916 px  mean residual rms 0.251 px
+  [29/32] v4 nrcb1 5 frames  crop 4103x3194  median |shift| 0.1177 px  mean residual rms 0.277 px
+  [30/32] v4 nrcb2 5 frames  crop 4152x3240  median |shift| 0.0477 px  mean residual rms 0.125 px
+  [31/32] v4 nrcb3 5 frames  crop 4092x3181  median |shift| 0.1230 px  mean residual rms 0.205 px
+  [32/32] v4 nrcb4 5 frames  crop 4127x3230  median |shift| 0.1106 px  mean residual rms 0.160 px
+  cross-visit catalog v1 NRCA1   403 stars
+  cross-visit catalog v1 NRCA2   928 stars
+  cross-visit catalog v1 NRCA3   422 stars
+  cross-visit catalog v1 NRCA4   915 stars
+  cross-visit catalog v1 NRCB1   787 stars
+  cross-visit catalog v1 NRCB2   181 stars
+  cross-visit catalog v1 NRCB3   816 stars
+  cross-visit catalog v1 NRCB4   288 stars
+  cross-visit catalog v2 NRCA1   391 stars
+  cross-visit catalog v2 NRCA2   219 stars
+  cross-visit catalog v2 NRCA3   411 stars
+  cross-visit catalog v2 NRCA4   392 stars
+  cross-visit catalog v2 NRCB1   211 stars
+  cross-visit catalog v2 NRCB2   581 stars
+  cross-visit catalog v2 NRCB3   223 stars
+  cross-visit catalog v2 NRCB4   673 stars
+  cross-visit catalog v3 NRCA1   699 stars
+  cross-visit catalog v3 NRCA2   574 stars
+  cross-visit catalog v3 NRCA3   393 stars
+  cross-visit catalog v3 NRCA4   262 stars
+  cross-visit catalog v3 NRCB1   235 stars
+  cross-visit catalog v3 NRCB2   465 stars
+  cross-visit catalog v3 NRCB3   371 stars
+  cross-visit catalog v3 NRCB4   398 stars
+  cross-visit catalog v4 NRCA1   536 stars
+  cross-visit catalog v4 NRCA2   792 stars
+  cross-visit catalog v4 NRCA3   463 stars
+  cross-visit catalog v4 NRCA4   861 stars
+  cross-visit catalog v4 NRCB1   821 stars
+  cross-visit catalog v4 NRCB2   342 stars
+  cross-visit catalog v4 NRCB3   821 stars
+  cross-visit catalog v4 NRCB4   485 stars
+  cross-visit: 23 edges over 4 visits, residual rms 0.090 px, gauge v1 (explicit)
+    visit 1: dx +0.0000  dy +0.0000  px
+    visit 2: dx +0.5012  dy +0.5596  px
+    visit 3: dx +0.4404  dy +0.7172  px
+    visit 4: dx +0.5872  dy +0.7134  px
+  wrote out\mosaic_registration_f090w.json: 128/159 frames shifted, median |shift| 0.1301 px, mean residual rms 0.214 px
+
+mosaic: 160/160 frames on grid, 352 tiles of 1024px (halo 24px)
+  scratch 2.11 GB, grid 15895x22130, free disk 260.9 GB
+  tile   20/352    0.5 min   0.69 tile/s  rss 2.42 GB  eta   8.0 min
+  tile   40/352    1.3 min   0.50 tile/s  rss 2.54 GB  eta  10.3 min
+  tile   60/352    2.8 min   0.35 tile/s  rss 2.78 GB  eta  13.8 min
+  tile   80/352    4.6 min   0.29 tile/s  rss 2.84 GB  eta  15.8 min
+  tile  100/352    6.5 min   0.26 tile/s  rss 2.84 GB  eta  16.3 min
+  tile  120/352    8.5 min   0.24 tile/s  rss 2.84 GB  eta  16.4 min
+  tile  140/352   10.7 min   0.22 tile/s  rss 2.84 GB  eta  16.2 min
+  tile  160/352   13.3 min   0.20 tile/s  rss 2.84 GB  eta  16.0 min
+  tile  180/352   16.1 min   0.19 tile/s  rss 2.84 GB  eta  15.4 min
+  tile  200/352   19.0 min   0.18 tile/s  rss 2.84 GB  eta  14.5 min
+  tile  220/352   21.9 min   0.17 tile/s  rss 2.84 GB  eta  13.1 min
+  tile  240/352   24.7 min   0.16 tile/s  rss 2.84 GB  eta  11.5 min
+  tile  260/352   27.1 min   0.16 tile/s  rss 2.84 GB  eta   9.6 min
+  tile  280/352   28.9 min   0.16 tile/s  rss 2.84 GB  eta   7.4 min
+  tile  300/352   29.9 min   0.17 tile/s  rss 2.84 GB  eta   5.2 min
+  tile  320/352   30.4 min   0.18 tile/s  rss 2.84 GB  eta   3.0 min
+  tile  340/352   30.6 min   0.19 tile/s  rss 2.84 GB  eta   1.1 min
+  tile  352/352   30.7 min   0.19 tile/s  rss 2.84 GB  eta   0.0 min
+  writing FITS from memmap ...
+
+mosaic build summary
+  output          : out\f090w_all_detectors_mosaic.fits
+  grid shape      : 15895 x 22130
+  frames combined : 160
+  tiles           : 352 (max 27 frames/tile)
+  covered pixels  : 120,288,441 (34.2% of grid)
+  max depth       : 17
+  wall time       : 30.8 min
+  peak RSS        : 4.58 GB
+  scratch (peak)  : 2.11 GB
+  output size     : 2.11 GB
+  frame loads     : 491 (cache hits 1443)

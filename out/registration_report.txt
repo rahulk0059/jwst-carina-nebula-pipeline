@@ -1,0 +1,7 @@
+registration (reference = jw02731001004_02105_00001_nrca1_cal.fits)
+  pixel scale: 0.0311 arcsec/px
+  v4e2   dx=+0.0202 dy=-0.0498 px | stars 312/400 | rms  0.142 max  1.788 px | bg   -0.0154
+  v4e3   dx=-0.0425 dy=+0.0254 px | stars 197/400 | rms  0.109 max  0.984 px | bg   -0.0317
+  v4e4   dx=+0.0152 dy=-0.1092 px | stars 91/400 | rms  0.210 max  1.858 px | bg   -0.0333
+  v4e5   dx=-0.0110 dy=-0.0690 px | stars 74/400 | rms  0.410 max  3.040 px | bg   -0.0521
+  median |shift| = 0.0748 px, mean residual rms = 0.218 px

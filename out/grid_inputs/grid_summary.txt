@@ -1,0 +1,14 @@
+common output grid (fixed, from MAST observation footprints)
+  pixel scale : 0.0310 arcsec/px
+  shape       : 15895 x 22130 pixels (y, x)
+  size        : 11.43 x 8.21 arcmin
+  footprint RA : 159.117596..159.307637 deg
+  footprint Dec: -58.688251..-58.551900 deg
+  rows used    : 6/6 MAST observations
+  per-filter (MAST observation rows):
+    F090W        1 obs 
+    F187N        1 obs 
+    F200W        1 obs 
+    F335M        1 obs 
+    F444W        1 obs 
+    F444W;F470N  1 obs 

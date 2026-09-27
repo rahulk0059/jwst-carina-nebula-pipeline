@@ -1,0 +1,2 @@
+obs_id,filename,kind,filter_name,pupil,detector,visit,exposure,size,status,local_path
+jw02731-o001_t017_nircam_clear-f090w,jw02731-o001_t017_nircam_clear-f090w_i2d.fits,I2D,F090W,CLEAR,combined,0,0,5415445440,ok,C:\data\jwst_i2d\mastDownload\JWST\jw02731-o001_t017_nircam_clear-f090w\jw02731-o001_t017_nircam_clear-f090w_i2d.fits

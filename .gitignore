@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Editors
+.idea/
+
+# Large / regenerable binary outputs (7.93 GB)
+# out/*.fits covers 3 mosaics, 1 diff image and 4 per-visit stacks.
+out/*.fits
+# ...except the fixed grid: 2,880 bytes, header-only, and AGENTS.md
+# requires it never be rebuilt in place. Cheap insurance.
+!out/grid.fits
+
+# memmap scratch from `mosaic --scratch-dir out` (2.11 GB if a run dies).
+# NOT .fits, so the rule above does not catch these.
+out/mosaic_sci.f32
+out/mosaic_cov.u16
+
+# astropy warning dumps (~1 MB of regenerable noise)
+out/*.err
+
+# Raw/derived data lives outside the repo (C:\data, 77 GB): raw MAST
+# downloads and the derived products built from them. Ignored
+# defensively in case such a root is ever created inside the tree.
+/data/

@@ -1,0 +1,30 @@
+
+Stage-2 download plan (F187N):
+F187N cal files (all)                         160 planned   158 on disk/verified     2 to download    0.24 GB
+F187N combined i2d mosaic                       1 planned     0 on disk/verified     1 to download    5.42 GB
+
+  total to download : 3 files, 5.65 GB
+  est. mosaic scratch: 10.2 GB peak (Stage 4)
+
+Disk (C:\data\jwst_cal\mastDownload\JWST): 247.0 GB free >= 6.2 GB needed
+
+cal files -> C:\data\jwst_cal\mastDownload\JWST
+jw02731001004_02101_00001_nrcb3_cal.fits         117.6 MB  ok
+jw02731001004_02101_00002_nrcb3_cal.fits         117.6 MB  ok
+
+i2d files -> C:\data\jwst_i2d\mastDownload\JWST
+  jw02731-o001_t017_nircam_clear-f187n_i2d.fits     268.4/5416.5 MB (  5.0%)
+  jw02731-o001_t017_nircam_clear-f187n_i2d.fits     536.9/5416.5 MB (  9.9%)
+  jw02731-o001_t017_nircam_clear-f187n_i2d.fits     805.3/5416.5 MB ( 14.9%)
+  jw02731-o001_t017_nircam_clear-f187n_i2d.fits    1073.7/5416.5 MB ( 19.8%)
+  jw02731-o001_t017_nircam_clear-f187n_i2d.fits    1342.2/5416.5 MB ( 24.8%)
+  jw02731-o001_t017_nircam_clear-f187n_i2d.fits    1610.6/5416.5 MB ( 29.7%)
+  jw02731-o001_t017_nircam_clear-f187n_i2d.fits    1879.0/5416.5 MB ( 34.7%)
+  jw02731-o001_t017_nircam_clear-f187n_i2d.fits    2147.5/5416.5 MB ( 39.6%)
+  jw02731-o001_t017_nircam_clear-f187n_i2d.fits    2415.9/5416.5 MB ( 44.6%)
+  jw02731-o001_t017_nircam_clear-f187n_i2d.fits    2684.4/5416.5 MB ( 49.6%)
+  jw02731-o001_t017_nircam_clear-f187n_i2d.fits    2952.8/5416.5 MB ( 54.5%)
+jw02731-o001_t017_nircam_clear-f187n_i2d.fits   5416.5 MB  error:The read operation timed out
+
+Stage-2 download INCOMPLETE: 1 of 3 file(s) failed. Re-run the same command to resume.
+  jw02731-o001_t017_nircam_clear-f187n_i2d.fits error:The read operation timed out
