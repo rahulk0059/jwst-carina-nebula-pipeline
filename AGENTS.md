@@ -65,21 +65,15 @@ To re-check the shipped state from scratch:
 
 Nothing below is needed to use what is shipped. Pick one.
 
-1. **Single-visit filters: F335M, F444W, F444W;F470N** (40 cal files each, a
-   ~944 MB combined i2d each, none downloaded yet). This is a *different kind*
-   of test, not more of the same:
-   - **No gauge problem.** One visit means no inter-visit pointing error, so
-     the cross-visit stage has nothing to solve and there is no anchor to
-     choose. Expect the intra-detector field term to be the whole story, and
-     do not expect the ~0.05 px floor to be the only thing left.
-   - **New grid, and check the pixel scale.** These are not the same detector
-     geometry as the F090W/F187N/F200W set, so `out/grid.fits` may not contain
-     them. Do the step-1 `_grid_bbox` check first, and if it does not fit,
-     **build a new grid at a different path** - rebuilding `out/grid.fits` in
-     place would invalidate all three shipped mosaics. Keep both grids.
-   - The long-wave detectors (`nrcalong`/`nrcblong`, currently absent from
-     disk) are a further step again: different detector family, different
-     pixel scale, so expect another grid decision.
+1. **The long-wave filters: F335M, F444W, F444W;F470N** (40 cal files each, a
+   ~944 MB combined i2d each, none downloaded yet). An earlier version of this
+   item described them as single-visit short-wave, which was wrong on every
+   count; see "F335M/F444W are long-wave, and 4 visits" below before planning
+   any of it. In short: they are `nrcalong`/`nrcblong` only, 4 visits x 5
+   dithers, they are the same 120 rows the manifest calls "missing", so the
+   gauge problem returns, and F444W cannot be told apart from F444W;F470N by
+   the current CLI. **F335M is the clean way in** (no pupil variant); treat
+   F444W as blocked on a `--pupil` selector.
 2. **Rotation-aware per-group registration.** Scoped, deliberately **not**
    implemented - see "Deferred: rotation-aware per-group registration". Worth
    ~20% of F090W's residual and nothing of the unidentifiable inter-detector
@@ -89,7 +83,8 @@ Nothing below is needed to use what is shipped. Pick one.
    centroid floor and PSF-difference bias against the drizzle; neither is
    characterised. This is measurement work, not a code fix.
 4. **Pause for productization.** The code is at a natural stopping point: 129
-   offline tests, no linter, three validated end-to-end results. If the goal
+   offline tests, no linter, three validated end-to-end results, and now a git
+   baseline. If the goal
    becomes a reusable tool rather than a set of measurement results, the
    remaining work is packaging, a config file instead of eight `--detector`
    flags, and CI - not more astronomy.
@@ -120,7 +115,12 @@ Nothing below is needed to use what is shipped. Pick one.
 `inspect`, `group` and `stack` accept `--detector` / `--filter`. **Always pass
 them.** The cal root holds all 8 NIRCam detectors, so `--visit 1` without
 `--detector nrca1 --filter F200W` silently groups 40 exposures from different
-detectors onto one 4760x11526 grid (and takes ~15 min instead of ~60 s).
+detectors onto one 4760x11526 grid (and takes ~15 min instead of ~60 s). Once
+the long-wave files land the root holds 10 detectors and the trap gets worse.
+`--filter` alone is *not* sufficient for F444W: it cannot separate F444W/CLEAR
+from F444W;F470N, because `CalExposure.filter_name` reads `FILTER`, which is
+`F444W` for both, and there is no `--pupil` flag. See "F335M/F444W are
+long-wave, and 4 visits".
 
 ## Data roots and disk truth
 
@@ -139,7 +139,10 @@ The 480 cal files are the short-wave set: 8 detectors x 60 exposures
 (3 filters x 4 visits x 5 dithers) for F090W, F187N and F200W. The **120
 "missing" cal files are the long-wave detectors** (`nrcalong`, `nrcblong`, 60
 each) - deliberately never downloaded, since the shipped mosaics are
-short-wave. Of the 40 i2d on disk, **3 are the combined all-visit products**
+short-wave. **Those 120 files are also the entire F335M/F444W/F444W;F470N
+opportunity**: see "F335M/F444W are long-wave, and 4 visits" below before
+treating them as out of scope. Of the 40 i2d on disk, **3 are the combined
+all-visit products**
 (the ones validation actually uses) and 37 are per-exposure F200W products
 from the original validation subset. The 566 "missing" i2d are the per-exposure
 products for the other filters plus the F335M/F444W combined products; they are
@@ -911,14 +914,79 @@ possible. Combined all-visit products in program 2731:
 | F090W | `jw02731-o001_t017_nircam_clear-f090w_i2d.fits` (5,415,445,440 B) | 160 | yes - **done** |
 | F187N | `jw02731-o001_t017_nircam_clear-f187n_i2d.fits` (5,416,456,320 B) | 160 | yes - **done** |
 | F200W | `jw02731-o001_t017_nircam_clear-f200w_i2d.fits` (5,420,381,760 B) | 160 | yes - **done** |
-| F335M | `jw02731-o001_t017_nircam_clear-f335m_i2d.fits` (944,968,320 B) | 40 | no, single visit |
-| F444W | `jw02731-o001_t017_nircam_clear-f444w_i2d.fits` (944,968,320 B) | 40 | no, single visit |
-| F444W;F470N | `jw02731-o001_t017_nircam_f444w-f470n_i2d.fits` (944,254,080 B) | 40 | no, single visit |
+| F335M | `jw02731-o001_t017_nircam_clear-f335m_i2d.fits` (944,968,320 B) | 40 (long-wave, 4 visits) | no - 2 long-wave detectors |
+| F444W | `jw02731-o001_t017_nircam_clear-f444w_i2d.fits` (944,968,320 B) | 40 (long-wave, 4 visits) | no - 2 long-wave detectors |
+| F444W;F470N | `jw02731-o001_t017_nircam_f444w-f470n_i2d.fits` (944,254,080 B) | 40 (long-wave, 4 visits) | no - 2 long-wave detectors |
 
-All three 160-frame filters are downloaded and done. The F335M/F444W sets are
-single-visit and have no inter-visit alignment to solve at all. (MIRI
-F1130W/F1280W/F1800W/F770W are a different instrument and out of scope for the
-NIRCam code path.)
+All three 160-frame short-wave filters are downloaded and done. The F335M and
+F444W sets are **not** single-visit and **not** short-wave - see the next
+section. (MIRI F1130W/F1280W/F1800W/F770W are a different instrument and out
+of scope for the NIRCam code path.)
+
+### F335M/F444W are long-wave, and 4 visits
+
+Everything the "What's next" item 1 previously assumed about these filters was
+wrong, and the errors compound, so this is worth stating plainly. Verified
+against MAST with `download --stage2 --filters F335M --plan-only` and by
+enumerating the product list directly:
+
+| claim | reality |
+|-------|---------|
+| single visit | **4 visits x 5 dithers**, 20 frames per detector |
+| short-wave | **`nrcalong`/`nrcblong` only** - MAST publishes no short-wave F335M or F444W cal for program 2731 |
+| a separate set, "none downloaded yet" | these are **among** the 120 "missing" cal rows the Data-roots table above calls deliberately-never-downloaded |
+| "no gauge problem" | 4 visits means inter-visit pointing error is possible again, so the five-step procedure applies in full |
+| 8 detectors | **2** long-wave detectors, so 8 groups of 5 rather than 32 |
+
+The three short-wave filters each have 8 detectors x 4 visits x 5 dithers = 160
+cal files. F335M and F444W have 2 detectors x 4 visits x 5 dithers = 40 each.
+F335M is CLEAR only, so its 40 files are the whole filter; F444W exists in two
+pupils, CLEAR and F470N, at 40 files each, which is why the manifest shows 80
+F444W-named cal rows. The combined i2d at ~944 MB is correspondingly the
+2-detector all-visit mosaic, not a single visit's worth.
+
+**Consequences to plan around:**
+
+- **The gauge step returns.** Measure the raw frame WCSs against
+  `jw02731-o001_t017_nircam_clear-f335m_i2d.fits` for all 2 detectors per
+  visit, pick the ~0 visit, and pass `--gauge-visit` explicitly. Do not let
+  the min-visit heuristic choose. State the predicted range before building.
+- **Expect the same identifiability wall.** NIRCam's short- and long-wave
+  channels do not overlap on sky, so within a visit the 2 long-wave detectors
+  tile disjoint sky exactly as the 8 short-wave ones do. Expect 0 same-visit
+  edges, hence the same visit/detector confounding, hence a per-detector step
+  that internal data cannot constrain. F090W's 0.1118 px is the precedent for
+  how large that unidentifiable half can be.
+- **Pixel scale is the real grid decision, not containment.** `out/grid.fits`
+  is the union of the `s_region` polygons of **all six** NIRCam observations
+  (`jwst_stack/grid.py`, cached at `out/grid_inputs/ngc3324_obs.csv`), so
+  F335M is inside the existing grid *by construction*. Measured against the
+  grid, F335M spans x 5338-16742, y 81-15839 against 22130 x 15895, and all
+  six filters fit. The open question is that the grid is 0.0310 arcsec/px
+  (F200W's scale) while long-wave native is ~0.063 arcsec/px - a 2.03x
+  upsample if the grid is reused. Confirm the real scale from the first
+  file's SCI `CDELT` via `io.sky_pixel_scale_arcsec`, then either reuse the
+  grid deliberately or build a second one at a **different path** with
+  `--scale`. Never rebuild `out/grid.fits` in place: that would invalidate all
+  three shipped mosaics.
+- **`_grid_bbox` clamps, so it cannot answer "does it fit" on its own.** It
+  clips to the grid (`jwst_stack/mosaic.py`), returning a truncated box rather
+  than `None` for an overrunning frame. Compare the *unclamped* extent against
+  the grid shape. It also needs a real file on disk, so this is a
+  post-download step - the sky-level `s_region` check above is the cheap
+  pre-check.
+- **F444W cannot be separated from F444W;F470N.** `CalExposure.filter_name`
+  reads `primary["FILTER"]`, which is `F444W` for both, and
+  `_select_exposures` filters on detector and filter only. There is no
+  `--pupil` flag anywhere in the pipeline, so `--filter F444W` would silently
+  mix both pupils into one 80-frame mosaic - the same class of bug as the
+  "always pass `--detector`" warning under Commands above. Either add a
+  `--pupil` selector or start with F335M, which has no pupil variant.
+- **Size table** (`--plan-only`, F335M): 40 cal (4.70 GB) + 1 combined i2d
+  (0.94 GB) = **41 files, 5.65 GB**. The 40 cal files are already rows in
+  verify's 600-row cal plan, so they will report `ok`, not `extra`, and the
+  unscoped problem count should fall from 686 to 645 (80 cal + 565 i2d
+  `missing`) - not stay at 686.
 
 ### Gotchas when re-measuring astrometry here
 
