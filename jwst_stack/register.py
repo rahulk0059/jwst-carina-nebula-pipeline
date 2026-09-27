@@ -332,3 +332,8 @@ def format_registration_summary(result: RegistrationResult) -> str:
         f"mean residual rms = {result.mean_residual_rms_px:.3f} px"
     )
     return "\n".join(lines)
+
+#: Public alias for :func:`_match_stars`.  ``gauge`` cross-matches a raw frame
+#: against the official i2d, which is the same nearest-neighbour operation, and
+#: should not have to reach into this module's private.
+match_stars = _match_stars

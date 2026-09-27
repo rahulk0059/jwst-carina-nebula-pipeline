@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterator
+from typing import Iterable, Iterator, Sequence
 
 import numpy as np
 from astropy.io import fits
@@ -29,6 +29,7 @@ class CalExposure:
     effexptm: float
     wcs: WCS
     shape: tuple[int, int]
+    pupil: str = "CLEAR"
     _sci: np.ndarray | None = None
     _err: np.ndarray | None = None
     _dq: np.ndarray | None = None
@@ -87,6 +88,12 @@ def read_cal_exposure(path: str | Path) -> CalExposure:
 
     The WCS is read from the SCI extension header (RA---TAN-SIP), which
     ``reproject`` consumes directly.
+
+    ``pupil`` comes from the primary header.  It is not redundant with
+    ``filter_name``: MAST's ``F444W;F470N`` is one *filter* exposed through
+    two pupils, and ``FILTER`` reads ``F444W`` for both, so selecting on
+    ``filter_name`` alone silently mixes two different bandpasses into one
+    stack.  Every other filter in this program is ``PUPIL=CLEAR``.
     """
     path = Path(path)
     with fits.open(path, memmap=False) as hdul:
@@ -104,6 +111,7 @@ def read_cal_exposure(path: str | Path) -> CalExposure:
         effexptm=float(primary.get("EFFEXPTM", 1.0)),
         wcs=wcs,
         shape=(ny, nx),
+        pupil=str(primary.get("PUPIL", "CLEAR")).strip().upper() or "CLEAR",
     )
 
 
@@ -117,6 +125,49 @@ def sky_pixel_scale_arcsec(exposure: CalExposure) -> float:
     """Pixel scale of an exposure in arcseconds."""
     scale = exposure.wcs.proj_plane_pixel_scales()[0]
     return float(scale.to_value("arcsec"))
+
+
+def select_exposures(
+    exposures: Iterable[CalExposure],
+    detector: Sequence[str] | None = None,
+    filter_name: Sequence[str] | None = None,
+    pupil: Sequence[str] | None = None,
+) -> list[CalExposure]:
+    """Filter exposures by detector, filter and pupil, case-insensitively.
+
+    ``filter_name`` matches ``FILTER`` only, which is why a bare ``F444W``
+    request is ambiguous: MAST exposes F444W through both ``CLEAR`` and
+    ``F470N``, and both read ``FILTER=F444W``.  Callers that pass ``filter_name``
+    without ``pupil`` on a mixed set should check
+    :func:`mixed_pupils` first rather than silently stacking two bandpasses.
+    """
+    def _norm(values: Sequence[str] | None) -> set[str] | None:
+        if not values:
+            return None
+        return {str(v).strip().upper() for v in values if str(v).strip()}
+
+    want_det = _norm(detector)
+    want_filter = _norm(filter_name)
+    want_pupil = _norm(pupil)
+    out = []
+    for e in exposures:
+        if want_det and e.detector.strip().upper() not in want_det:
+            continue
+        if want_filter and e.filter_name.strip().upper() not in want_filter:
+            continue
+        if want_pupil and e.pupil.strip().upper() not in want_pupil:
+            continue
+        out.append(e)
+    return out
+
+
+def mixed_pupils(exposures: Iterable[CalExposure]) -> list[str]:
+    """Sorted distinct pupils present in *exposures*; more than one is a hazard.
+
+    Stacking two pupils of the same ``FILTER`` averages two different
+    bandpasses, which is exactly the failure the long-wave ``F444W`` set invites.
+    """
+    return sorted({e.pupil.strip().upper() for e in exposures if e.pupil})
 
 
 def mask_scaled_sci(sci: np.ndarray, dq: np.ndarray | None) -> np.ndarray:

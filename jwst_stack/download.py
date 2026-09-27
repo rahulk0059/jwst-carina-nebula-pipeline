@@ -87,6 +87,37 @@ def split_filter_pupil(filters: str) -> tuple[str, str]:
     return f, p
 
 
+def parse_filter_spec(spec: str) -> tuple[str, str | None]:
+    """Split a *user* filter spec into (filter, pupil or None).
+
+    Distinct from :func:`split_filter_pupil`, which reads a MAST row and so
+    always knows the pupil.  Here a bare ``F444W`` means "any pupil", because
+    that is what the flag used to do and narrowing it to CLEAR silently would
+    change existing plans.  ``F444W;CLEAR`` narrows it, which is the only way to
+    fetch one bandpass of a two-pupil filter.
+    """
+    text = str(spec).strip().upper()
+    if ";" in text:
+        f, p = split_filter_pupil(text)
+        return f, (p or None)
+    return text, None
+
+
+def resolve_pupil_filter(
+    item_filter: str, item_pupil: str, wanted_filters: set[str], wanted_pupils: set[str] | None
+) -> bool:
+    """Does a product's ``(filter, pupil)`` satisfy a set of user specs?
+
+    ``wanted_pupils`` is ``None`` when no spec named a pupil, in which case
+    every pupil of a matching filter is accepted.
+    """
+    if str(item_filter).strip().upper() not in wanted_filters:
+        return False
+    if wanted_pupils is None:
+        return True
+    return str(item_pupil).strip().upper() in wanted_pupils
+
+
 def visit_and_exposure_from_name(filename: str) -> tuple[int, int]:
     """Best-effort (visit, exposure) from the file/obs name structure."""
     vm = _VISIT_RE.match(filename)
@@ -169,8 +200,15 @@ def build_items(
     data_root: str | Path,
     filter_names: set[str] | None = None,
     detectors: set[str] | None = None,
+    pupils: set[str] | None = None,
 ) -> list[DownloadItem]:
-    """Project a MAST product table onto :class:`DownloadItem` rows."""
+    """Project a MAST product table onto :class:`DownloadItem` rows.
+
+    ``pupils`` narrows to specific pupils and defaults to ``None`` (any pupil).
+    It exists because ``FILTER`` is ``F444W`` for both the CLEAR and the F470N
+    exposure, so a filter-only plan of F444W silently doubles its own file
+    count and mixes two bandpasses into one mosaic.
+    """
     data_root = Path(data_root)
     items: list[DownloadItem] = []
     for row in products:
@@ -185,8 +223,10 @@ def build_items(
         detector, _ = parsed
         if detectors is not None and detector not in detectors:
             continue
-        filter_name, _ = split_filter_pupil(row["filters"])
+        filter_name, pupil = split_filter_pupil(row["filters"])
         if filter_names is not None and filter_name not in filter_names:
+            continue
+        if pupils is not None and pupil not in pupils:
             continue
         items.append(_make_item(row, kind))
     items.sort(key=lambda i: (i.filter_name, i.visit, i.detector, i.exposure, i.kind))
@@ -219,6 +259,7 @@ def build_i2d_items(
     products: Table,
     data_root: str | Path,
     filter_name: str | Sequence[str] = "F200W",
+    pupils: set[str] | None = None,
 ) -> list[DownloadItem]:
     """Every i2d product, *including* the combined all-visit mosaic.
 
@@ -226,7 +267,8 @@ def build_i2d_items(
     name has no detector/exposure components -- which is exactly the combined
     mosaic, the one file whose size is easiest to get wrong.
 
-    ``filter_name`` may be one filter or several.
+    ``filter_name`` may be one filter or several.  ``pupils`` narrows to
+    specific pupils; ``None`` accepts every pupil.
     """
     if isinstance(filter_name, str):
         wanted = {filter_name.upper()}
@@ -242,8 +284,10 @@ def build_i2d_items(
         )
         if kind.upper() != "I2D":
             continue
-        fname, _ = split_filter_pupil(row["filters"])
+        fname, pupil = split_filter_pupil(row["filters"])
         if fname.upper() not in wanted:
+            continue
+        if pupils is not None and pupil not in pupils:
             continue
         items.append(_make_item(row, "I2D"))
     items.sort(key=lambda i: (is_combined_i2d(i.filename), i.detector, i.visit, i.exposure))
@@ -276,11 +320,19 @@ def plan_stage2(
     if not wanted:
         raise ValueError("plan_stage2 needs at least one filter name")
 
+    # A spec may be "FILTER" (any pupil) or "FILTER;PUPIL" (exactly that one).
+    # Bare names are the historical behaviour, so they must keep meaning "any".
+    filter_set = {parse_filter_spec(f)[0] for f in wanted}
+    named_pupils = {p for p in (parse_filter_spec(f)[1] for f in wanted) if p}
+    pupil_set = named_pupils or None
+
     data_root = Path(data_root)
     i2d_root = Path(i2d_root)
-    all_cal = build_items(products, {"CAL"}, data_root, filter_names=set(wanted))
+    all_cal = build_items(
+        products, {"CAL"}, data_root, filter_names=filter_set, pupils=pupil_set
+    )
 
-    all_i2d = build_i2d_items(products, i2d_root, filter_name=wanted)
+    all_i2d = build_i2d_items(products, i2d_root, filter_name=filter_set, pupils=pupil_set)
     combined = [i for i in all_i2d if is_combined_i2d(i.filename)]
     perexposure = [i for i in all_i2d if not is_combined_i2d(i.filename)]
 
@@ -308,6 +360,7 @@ def plan_stage2(
     return {
         "categories": categories,
         "filters": wanted,
+        "pupils": sorted(named_pupils) if named_pupils else [],
         "all_cal": all_cal,
         "all_i2d": all_i2d,
         "combined": combined,
@@ -373,6 +426,25 @@ def format_stage2_plan(
     lines.append(f"\n  total to download : {grand_pending} files, {total_pending/1e9:.2f} GB")
     if scratch_estimate_gb is not None:
         lines.append(f"  est. mosaic scratch: {scratch_estimate_gb:.1f} GB peak (Stage 4)")
+
+    # A bare filter name that lands on several pupils is planning two
+    # bandpasses.  Say so, because the usual way to hit this is a shell eating
+    # the ';' in F444W;CLEAR and leaving a bare F444W that looks fine.
+    mixed = sorted({i.pupil for _, rows in plan["categories"].items()
+                    for i, _ in rows if getattr(i, "pupil", "")})
+    if len(mixed) > 1 and not plan.get("pupils"):
+        lines.append("")
+        lines.append(
+            f"WARNING: this plan mixes {len(mixed)} pupils ({', '.join(mixed)}), "
+            f"which are different bandpasses that share FILTER="
+            f"{label_filter.split(';')[0]}."
+        )
+        lines.append(
+            f"  Narrow it if that was not intended: "
+            f"--filters \"{label_filter.split(';')[0]};{mixed[0]}\""
+            f"  (QUOTE IT: an unquoted ';' is a command separator in "
+            f"PowerShell/cmd and silently plans every pupil)"
+        )
     return "\n".join(lines)
 
 

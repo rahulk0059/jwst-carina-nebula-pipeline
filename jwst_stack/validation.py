@@ -541,3 +541,8 @@ def validate_mosaic(
         json.dumps(result.as_dict(), indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     return result
+
+#: Public alias for :func:`_open_i2d`.  ``gauge`` also needs to open an
+#: official i2d, and duplicating the "first 2-D extension carries the science"
+#: rule would be a second place to get it wrong.
+open_i2d = _open_i2d

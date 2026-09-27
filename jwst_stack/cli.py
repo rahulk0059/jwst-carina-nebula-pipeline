@@ -11,7 +11,15 @@ import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
 
-from jwst_stack import download, grid as grid_mod, io, grouping, plotting, stack as stack_mod
+from jwst_stack import (
+    download,
+    gauge as gauge_mod,
+    grid as grid_mod,
+    io,
+    grouping,
+    plotting,
+    stack as stack_mod,
+)
 
 
 def _add_common(parser: argparse.ArgumentParser) -> None:
@@ -29,6 +37,17 @@ def _add_selection(parser: argparse.ArgumentParser) -> None:
         nargs="+",
         default=None,
         help="e.g. F200W (repeatable)",
+    )
+    parser.add_argument(
+        "--pupil",
+        nargs="+",
+        default=None,
+        help=(
+            "e.g. CLEAR or F470N (repeatable). REQUIRED whenever the selection "
+            "spans more than one pupil: F444W is exposed through both CLEAR and "
+            "F470N and both read FILTER=F444W, so --filter F444W alone would "
+            "silently stack two bandpasses"
+        ),
     )
 
 
@@ -155,6 +174,60 @@ def build_parser() -> argparse.ArgumentParser:
         help="report the resource envelope and exit without building",
     )
 
+    p_gauge = sub.add_parser(
+        "gauge",
+        help=(
+            "Step 2: measure the raw per-visit frame WCS offsets against an "
+            "official i2d and report the anchor visit."
+        ),
+    )
+    _add_common(p_gauge)
+    _add_selection(p_gauge)
+    p_gauge.add_argument(
+        "--i2d",
+        required=True,
+        help="this filter's official combined *_i2d.fits",
+    )
+    p_gauge.add_argument(
+        "--exposure",
+        type=int,
+        default=1,
+        help="exposure number supplying the reference stars, per group (default 1)",
+    )
+    p_gauge.add_argument(
+        "--match-radius-arcsec",
+        type=float,
+        default=gauge_mod.DEFAULT_MATCH_ARCSEC,
+        help=(
+            "max star-match radius in arcsec, converted at the i2d's measured "
+            f"scale (default {gauge_mod.DEFAULT_MATCH_ARCSEC})"
+        ),
+    )
+    p_gauge.add_argument("--fwhm-px", type=float, default=gauge_mod.DEFAULT_FWHM_PX)
+    p_gauge.add_argument("--threshold-sigma", type=float, default=5.0)
+    p_gauge.add_argument(
+        "--min-matched", type=int, default=gauge_mod.DEFAULT_MIN_MATCHED
+    )
+    p_gauge.add_argument(
+        "--max-i2d-stars", type=int, default=gauge_mod.DEFAULT_MAX_I2D_STARS
+    )
+    p_gauge.add_argument(
+        "--max-frame-stars", type=int, default=gauge_mod.DEFAULT_MAX_FRAME_STARS
+    )
+    p_gauge.add_argument(
+        "--json-out",
+        default=None,
+        help="per-group JSON (default <outdir>/<filter>_step2_detectors.json)",
+    )
+    p_gauge.add_argument(
+        "--log-out",
+        default=None,
+        help="text report (default <outdir>/<filter>_step2.log)",
+    )
+    p_gauge.add_argument(
+        "--no-write", action="store_true", help="print only, write no files"
+    )
+
     p_dl = sub.add_parser("download", help="List and download MAST cal/i2d products.")
     p_dl.add_argument("--input-dir", default=download.DEFAULT_DATA_ROOT)
     p_dl.add_argument("--i2d-dir", default=download.DEFAULT_I2D_ROOT)
@@ -257,38 +330,99 @@ def _select_exposures(
     exposures: list[io.CalExposure],
     detector: list[str] | None,
     filter_name: list[str] | None,
+    pupil: list[str] | None = None,
 ) -> list[io.CalExposure]:
-    """Keep only the requested detectors / filters.
+    """Keep only the requested detectors / filters / pupils.
 
-    Mixing detectors or filters in one stack is meaningless, so an explicit
-    selection is required as soon as the input tree holds more than one.
+    ``FILTER`` is ``F444W`` for both the CLEAR and the F470N exposure, so
+    ``--filter F444W`` alone used to plan and build one 80-frame mosaic from two
+    different bandpasses without a word of complaint.  The check runs on the
+    *result*, not on whether ``--pupil`` was passed, so asking for both pupils
+    explicitly is refused too rather than honoured.
     """
-    if detector:
-        wanted = {d.strip().lower() for d in detector}
-        exposures = [e for e in exposures if e.detector.lower() in wanted]
-    if filter_name:
-        wanted = {f.strip().lower() for f in filter_name}
-        exposures = [e for e in exposures if e.filter_name.lower() in wanted]
-    return exposures
+    selected = io.select_exposures(
+        exposures, detector=detector, filter_name=filter_name, pupil=pupil
+    )
+    found = io.mixed_pupils(selected)
+    if len(found) > 1:
+        raise SystemExit(
+            f"the selection spans {len(found)} pupils ({', '.join(found)}), so it "
+            f"would mix bandpasses in one stack: {', '.join(found)} share "
+            f"FILTER=F444W and are only distinguishable by PUPIL. Pass "
+            f"--pupil with exactly one of them."
+        )
+    return selected
 
 
 def _load_selected(args: argparse.Namespace) -> list[io.CalExposure]:
     exposures = _select_exposures(
-        _load_exposures(args.input_dir), args.detector, args.filter_name
+        _load_exposures(args.input_dir),
+        args.detector,
+        args.filter_name,
+        getattr(args, "pupil", None),
     )
     if not exposures:
         sys.exit(
-            "no exposures match the requested detector/filter "
-            f"({args.detector}, {args.filter_name}) under {args.input_dir}"
+            "no exposures match the requested detector/filter/pupil "
+            f"({args.detector}, {args.filter_name}, "
+            f"{getattr(args, 'pupil', None)}) under {args.input_dir}"
         )
     detectors = sorted({e.detector for e in exposures})
     filters = sorted({e.filter_name for e in exposures})
     print(
         f"loaded {len(exposures)} exposures "
         f"({len(detectors)} detector(s): {', '.join(detectors)}; "
-        f"filter(s): {', '.join(filters)})"
+        f"filter(s): {', '.join(filters)}; pupil: "
+        f"{', '.join(io.mixed_pupils(exposures))})"
     )
     return exposures
+
+
+def run_gauge(args: argparse.Namespace) -> None:
+    exposures = _load_selected(args)
+    label = gauge_mod.filter_label(exposures)
+    print(
+        f"gauge target: {label} "
+        f"({len(exposures)} exposures, reference exposure {args.exposure})"
+    )
+    try:
+        result = gauge_mod.measure_gauge(
+            exposures,
+            args.i2d,
+            reference_exposure=args.exposure,
+            match_arcsec=args.match_radius_arcsec,
+            fwhm_px=args.fwhm_px,
+            threshold_sigma=args.threshold_sigma,
+            max_i2d_stars=args.max_i2d_stars,
+            max_frame_stars=args.max_frame_stars,
+            min_matched=args.min_matched,
+        )
+    except gauge_mod.GaugeError as exc:
+        sys.exit(f"gauge failed: {exc}")
+
+    print()
+    print(gauge_mod.format_gauge_report(result, filter_label=label))
+
+    if args.no_write:
+        return
+    outdir = Path(args.outdir)
+    # F444W;F470N must not land in the same file as F444W:CLEAR, so the pupil
+    # stays in the stem -- the two are different measurements.
+    stem = label.lower().replace(";", "_") or "gauge"
+    json_out = (
+        Path(args.json_out) if args.json_out else outdir / f"{stem}_step2_detectors.json"
+    )
+    log_out = Path(args.log_out) if args.log_out else outdir / f"{stem}_step2.log"
+    gauge_mod.write_gauge_outputs(
+        result, json_path=json_out, log_path=log_out, filter_label=label
+    )
+    print()
+    print(f"wrote {json_out}")
+    print(f"wrote {log_out}")
+    print(
+        f"next: re-run the mosaic with --gauge-visit {result.anchor_visit} "
+        f"(this is a measured anchor, not the lowest-visit heuristic)"
+    )
 
 
 def run_inspect(args: argparse.Namespace) -> None:
@@ -547,6 +681,8 @@ def main(argv: list[str] | None = None) -> None:
         run_compare(args)
     elif args.command == "mosaic":
         run_mosaic(args)
+    elif args.command == "gauge":
+        run_gauge(args)
     elif args.command == "download":
         if getattr(args, "stage2", False):
             # propagate the exit code: run_stage2 returns 1 on a failed disk

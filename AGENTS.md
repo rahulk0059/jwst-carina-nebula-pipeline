@@ -27,6 +27,11 @@ evidence, and the per-filter sections are the authority for their own numbers.
 | F187N | `out/f187n_all_detectors_mosaic.fits` (2.11 GB) | visit 1, 0.0060 px, `explicit` | **0.0647 px** | 99.3% | 5908 / 6000 |
 | F335M (native grid) | `out/f335m_all_detectors_mosaic.fits` (0.52 GB) | visit 1, 0.0054 px, `explicit` | **0.1000 px** = 0.00629" | 98.7% | 5619 / 6000 |
 | F335M (cross-check) | `out/f335m_all_detectors_mosaic_0031grid.fits` (2.11 GB) | visit 1, `explicit` | **0.1801 px** = 0.00558" | 83.6% | 5432 / 6000 |
+| F444W | *not yet run* - `--pupil` selector now exists | - | - | - | - |
+
+F444W is the one filter left. It is unblocked and unstarted: the `--pupil`
+selector it was waiting on now exists (see "F444W: the pupil selector"), and the
+step-2 probe it needs is the `gauge` subcommand rather than a throwaway script.
 
 **F335M is the odd one out and the reason is measured, not guessed.** It is
 long-wave (2 detectors, native 0.0629"/px, not 0.031), so its pixels are 2.03x
@@ -66,7 +71,7 @@ Three things a newcomer must not get wrong:
 To re-check the shipped state from scratch:
 
 ```powershell
-.venv\Scripts\python -m pytest -q tests                      # 129 pass
+.venv\Scripts\python -m pytest -q tests                      # 168 pass
 .venv\Scripts\python -m jwst_stack.cli verify --outdir out   # exits 1 by design, see note
 .venv\Scripts\python -m jwst_stack.cli compare --tiled `
   --stack out\f187n_all_detectors_mosaic.fits `
@@ -94,9 +99,10 @@ Nothing below is needed to use what is shipped. Pick one.
    "F335M measured run" for the numbers, the commands, and the measured cause
    of F335M's ~3x-worse arcsec accuracy (an unidentifiable per-detector offset,
    not a bug). Read that before quoting F335M anywhere.
-   **F444W is the remaining long-wave filter and is still blocked** on a
-   `--pupil` selector, since `--filter F444W` cannot separate it from
-   F444W;F470N. Nothing about the F335M work unblocks it.
+   **F444W is the only filter left to run.** It was blocked on a missing
+   `--pupil` selector, which now exists end to end - selection *and* download
+   planning - see "F444W: the pupil selector" below. That selector was its own
+   piece of work; nothing about the F335M run did the unblocking.
 2. **Rotation-aware per-group registration.** Scoped, deliberately **not**
    implemented - see "Deferred: rotation-aware per-group registration". Worth
    ~20% of F090W's residual and nothing of the unidentifiable inter-detector
@@ -117,7 +123,7 @@ Nothing below is needed to use what is shipped. Pick one.
 - venv: `.venv\Scripts\python` (Windows / PowerShell 7)
 - Run everything through the venv interpreter, e.g.
   `.venv\Scripts\python -m jwst_stack.cli <command>`
-- Tests: `.venv\Scripts\python -m pytest -q tests` (129 tests, all offline)
+- Tests: `.venv\Scripts\python -m pytest -q tests` (168 tests, all offline)
 - There is **no** linter or type-checker configured (no ruff/mypy/flake8 in the
   venv, no `pyproject.toml`/`setup.cfg`). `ast.parse` + the test suite are the
   correctness gate.
@@ -128,6 +134,7 @@ Nothing below is needed to use what is shipped. Pick one.
 |---------|---------|
 | `inspect` | per-file metadata table |
 | `group` | footprint-overlap groups |
+| `gauge` | **step 2**: raw frame-WCS offset of each visit vs an official i2d, and the anchor visit |
 | `stack` | register + align + sigma-clip stack one visit or all |
 | `compare` | compare a stack to an official `*_i2d.fits` |
 | `download` | MAST product discovery and resumable download |
@@ -135,17 +142,82 @@ Nothing below is needed to use what is shipped. Pick one.
 | `grid` | build/describe the fixed common output grid |
 | `mosaic` | Stage 4: all 8 detectors x 4 visits on the fixed grid, tiled |
 
-`inspect`, `group` and `stack` accept `--detector` / `--filter`. **Always pass
-them.** The cal root holds all 8 NIRCam detectors, so `--visit 1` without
-`--detector nrca1 --filter F200W` silently groups 40 exposures from different
-detectors onto one 4760x11526 grid (and takes ~15 min instead of ~60 s). The
-root now holds 10 detectors - the 8 short-wave plus F335M's `nrcalong` and
-`nrcblong` - so the trap is already live, and it gets worse still when F444W
-lands.
-`--filter` alone is *not* sufficient for F444W: it cannot separate F444W/CLEAR
-from F444W;F470N, because `CalExposure.filter_name` reads `FILTER`, which is
-`F444W` for both, and there is no `--pupil` flag. See "F335M/F444W are
-long-wave, and 4 visits".
+`inspect`, `group`, `stack`, `mosaic` and `gauge` accept `--detector` /
+`--filter` / `--pupil`. **Always pass them.** The cal root holds all 8 NIRCam
+detectors, so `--visit 1` without `--detector nrca1 --filter F200W` silently
+groups 40 exposures from different detectors onto one 4760x11526 grid (and takes
+~15 min instead of ~60 s). The root now holds 10 detectors - the 8 short-wave
+plus F335M's `nrcalong` and `nrcblong` - so the trap is already live, and it
+gets worse still when F444W lands.
+
+**`--pupil` is now required whenever a selection spans more than one pupil.**
+`FILTER` is `F444W` for both the CLEAR and the F470N exposure, so
+`--filter F444W` alone used to match all 80 files and quietly plan or build one
+mosaic from two bandpasses. Selection now fails loudly instead, and the same
+distinction is honoured when planning a download (`--filters F444W;CLEAR`).
+See "F444W: the pupil selector" below.
+
+## `gauge` is the step-2 subcommand, and it is now reproducible
+
+Step 2 used to be a throwaway probe script, so F090W's and F200W's runs are
+**not reproducible from this repository** - their `step2.log` files are gone and
+only the JSON summaries survive. That cannot be attributed to anything, because
+a different star sample, a different aggregation and a transcription slip are all
+consistent with what is left. **F187N's surviving log still reproduces exactly**,
+and F335M's does too. Do not try to reconstruct the other two.
+
+`gauge` is the replacement, and every future step-2 run must go through it:
+
+```powershell
+.venv\Scripts\python -m jwst_stack.cli gauge `
+  --input-dir C:\data\jwst_cal\mastDownload\JWST --outdir out `
+  --detector nrcalong nrcblong --filter F335M `
+  --i2d "C:\data\jwst_i2d\mastDownload\JWST\jw02731-o001_t017_nircam_clear-f335m\jw02731-o001_t017_nircam_clear-f335m_i2d.fits"
+```
+
+It measures the **raw, uncorrected** header-WCS error of one reference frame per
+`(visit, detector)` group against the official i2d, rolls that up to a
+per-visit median, and reports the visit nearest zero as the anchor. It writes
+`out/<filter>_step2_detectors.json` and `out/<filter>_step2.log`, and prints the
+`--gauge-visit` to use next. It does **not** touch the mosaic or the solve.
+
+**Verified to reproduce F335M bit-for-bit.** The old ad hoc artifact and the
+subcommand's output agree to 0.0 across all 8 groups x 5 fields
+(`n_matched`, `dx_median`, `dy_median`, `offset_median`, `offset_mad`); check it
+yourself with `.\.venv\Scripts\python tools\compare_f335m_gauge.py`, which reads
+the reference out of git and exits non-zero on any difference. The anchor is
+visit 1 at 0.0054 px, exactly as recorded.
+
+Two deliberate changes to the artifact, both of which make it a better record
+and neither of which touches a measured number:
+
+- The JSON is now the **flat** `{"v1_nrcalong": {...}}` form used by
+  `out/f090w_`, `f187n_` and `f200w_step2_detectors.json`. F335M's ad hoc file
+  was the only nested one; it is normalised to match its peers. F187N's field
+  set exactly, plus one addition:
+- `n_frame_stars` records how many stars the frame *offered* before matching, so
+  the JSON carries the **match rate** - 87-99% across the eight F335M groups.
+  This is the one diagnostic that catches a bad match, and it is why the old
+  ad hoc log's per-group "400 frame stars, 348 matched" lines are worth keeping.
+
+**Read the match rate, and do not trust scatter.** `offset_mad` is *not* a
+validity check: on a regular star lattice, an offset wider than the match radius
+pairs each star with a neighbour and the resulting median is tight to ~0.02 px,
+indistinguishable from a genuine measurement (`test_offset_wider_than_the_match
+_radius_is_flagged_not_trusted` pins this down). So `gauge` does not pretend to
+detect bad matches. What it does instead is flag any group whose median has
+grown past 40% of the match radius - the regime where a real translation and a
+lucky pairing stop being separable. Every shipped filter sits near 10% of its
+radius (F335M 0.49 px of 4.77, the short-wave three 0.9 px of 9.7), so the
+warning only fires when the radius is too small for the offset being measured.
+
+**Groups that cannot be measured are reported, not averaged in.** A group with
+fewer than `--min-matched` matches (default 20) is listed under `SKIPPED` and
+excluded from the per-visit median, and the visit's `n_det` says how many
+detectors actually backed it. A gauge that measures *nothing* exits non-zero
+rather than reporting zero, because a gauge of zero is indistinguishable from a
+gauge that failed.
+
 
 ## Data roots and disk truth
 
@@ -996,18 +1068,71 @@ F444W-named cal rows. The combined i2d at ~944 MB is correspondingly the
   the grid shape. It also needs a real file on disk, so this is a
   post-download step - the sky-level `s_region` check above is the cheap
   pre-check.
-- **F444W cannot be separated from F444W;F470N.** `CalExposure.filter_name`
-  reads `primary["FILTER"]`, which is `F444W` for both, and
-  `_select_exposures` filters on detector and filter only. There is no
-  `--pupil` flag anywhere in the pipeline, so `--filter F444W` would silently
-  mix both pupils into one 80-frame mosaic - the same class of bug as the
-  "always pass `--detector`" warning under Commands above. Either add a
-  `--pupil` selector or start with F335M, which has no pupil variant.
+- **F444W and F444W;F470N are now separable - use `--pupil`.** This was the
+  blocker; see "F444W: the pupil selector" below. Briefly: pass
+  `--pupil CLEAR` for the broadband run and `--filters F444W;CLEAR` when
+  downloading, and never rely on `--filter F444W` alone, which now errors
+  instead of quietly mixing both.
 - **Size table** (`--plan-only`, F335M): 40 cal (4.70 GB) + 1 combined i2d
   (0.94 GB) = **41 files, 5.65 GB**. The 40 cal files are already rows in
   verify's 600-row cal plan, so they report `ok`, not `extra`, and the unscoped
   problem count fell from 686 to **645** (80 cal + 565 i2d `missing`) exactly
   as predicted. See "F335M: measured scales and the two-grid decision" below.
+
+### F444W: the pupil selector
+
+This is the bug that blocked the last filter, and it is worth writing down
+because the failure was **silent and total** - the same shape as the
+`--stage2`/F200W bug and the discarded `run_stage2` exit code above.
+
+**What was wrong.** `CalExposure.filter_name` reads `primary["FILTER"]`, and MAST
+sets `FILTER=F444W` for *both* the CLEAR and the F470N exposure of program 2731
+(pupil lives in a separate `PUPIL` keyword). Selection filtered on detector and
+filter only, and no `--pupil` flag existed anywhere. So `--filter F444W` matched
+all 80 files - two bandpasses, `nrcalong`/`nrcblong`, 4 visits, 5 dithers - and
+would have planned, downloaded and mosaiced them as one product while printing
+nothing wrong at any stage. F335M was started first precisely to avoid finding
+out.
+
+**What changed, in three places** (missing any one of them re-opens the bug):
+
+1. `io.CalExposure` carries `pupil`, read from the primary header and defaulting
+   to `CLEAR` when absent, so the 520 short-wave and F335M files are unaffected.
+   `io.select_exposures` and `io.mixed_pupils` do the filtering and the
+   detection.
+2. `cli._select_exposures` **fails loudly** when the *result* spans more than one
+   pupil. The check is on the result rather than on whether `--pupil` was passed,
+   so `--pupil CLEAR F470N` is refused too rather than honoured. `--pupil` is on
+   every selection subparser (`inspect`, `group`, `stack`, `mosaic`, `gauge`).
+3. `download.build_items` / `build_i2d_items` / `plan_stage2` accept a pupil
+   filter, so `--filters F444W;CLEAR` plans and fetches one bandpass. A **bare**
+   `--filters F444W` still means every pupil**, because narrowing it to CLEAR
+   would silently halve every existing plan - the change is opt-in, and the two
+   narrow plans are asserted to partition the bare one rather than overlap it
+   (`test_plan_stage2_keeps_itself_consistent_across_both_pupil_specs`).
+
+Regression tests: `test_cli_rejects_a_mixed_pupil_selection`,
+`test_plan_stage2_narrows_to_the_named_pupil`,
+`test_plan_stage2_bare_filter_still_means_every_pupil`,
+`test_every_selection_command_accepts_the_pupil_flag`.
+
+**Quote `F444W;CLEAR`, or the shell will eat the `;`.** In PowerShell and cmd an
+unquoted `;` is a command separator, so `--filters F444W;CLEAR` silently
+becomes `--filters F444W` and plans **both** pupils (80 cal / 13.70 GB instead
+of 40 cal / 5.65 GB) while looking like a successful plan. This is the same
+silent-wrong-answer class as everything else above, and it is easy to reach
+because the intended command is the natural thing to type. `format_stage2_plan`
+therefore refuses to stay quiet: a plan that spans more than one pupil while no
+pupil was named prints a `WARNING` naming both pupils and the quoted command to
+fix it. Always write `--filters "F444W;CLEAR"`.
+
+**To run F444W**, take the same five steps as F335M with `--pupil CLEAR` and
+`--filters "F444W;CLEAR"`. The plan should read **40 cal (4.70 GB) + 1 combined
+i2d (0.94 GB) = 41 files, 5.65 GB**, and must not warn about mixed pupils.
+**F444W;F470N is a separate product with its own i2d** and is *not* part of this
+run; do not combine them, and do not "helpfully" download both. The gauge writes
+to `out/f444w_step2_*` and the narrowband run to `out/f444w_f470n_step2_*`, so
+the two cannot overwrite each other.
 
 ### F335M: measured scales and the two-grid decision
 
@@ -1077,8 +1202,9 @@ committed version.
 Step 2 first, as the five-step procedure requires, with the radius set in
 arcsec and converted at the measured scale - 0.3 arcsec = 4.77 px at 0.0629,
 not the 3.2 px the same radius gives at short-wave scale. 6133 stars detected
-in the i2d; 348-396 matched per group, far above the 20 floor, so every group
-is measured. The anchor is unambiguous.
+in the i2d; 348-396 matched per group (87-99% of the 400 stars each frame
+offers), far above the 20 floor, so every group is measured. The anchor is
+unambiguous.
 
 | visit | dx | dy | abs offset | detector spread | internal rms |
 |-------|----|----|------------|-----------------|--------------|
@@ -1088,7 +1214,9 @@ is measured. The anchor is unambiguous.
 | v4 | +0.3098 | -0.3798 | 0.4901 | 0.0108 | 0.0075 |
 
 `v1` is the anchor at 0.0054 px = 0.00034 arcsec, so `--gauge-visit 1` was
-passed explicitly. Record: `out/f335m_step2.log`, `out/f335m_step2_detectors.json`.
+passed explicitly. Record: `out/f335m_step2.log`, `out/f335m_step2_detectors.json`,
+both now written by `jwst_stack gauge` - see "`gauge` is the step-2 subcommand"
+above for the command and the bit-for-bit reproduction check.
 
 Both builds, same command apart from `--grid`/`--out`/`--registration`:
 
