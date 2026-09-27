@@ -3,6 +3,7 @@ jw02731-o001_t017_nircam_clear-f090w,jw02731-o001_t017_nircam_clear-f090w_i2d.fi
 jw02731-o001_t017_nircam_clear-f187n,jw02731-o001_t017_nircam_clear-f187n_i2d.fits,I2D,F187N,CLEAR,combined,0,0,5416456320,ok,C:\data\jwst_i2d\mastDownload\JWST\jw02731-o001_t017_nircam_clear-f187n\jw02731-o001_t017_nircam_clear-f187n_i2d.fits
 jw02731-o001_t017_nircam_clear-f200w,jw02731-o001_t017_nircam_clear-f200w_i2d.fits,I2D,F200W,CLEAR,combined,0,0,5420381760,ok,C:\data\jwst_i2d\mastDownload\JWST\jw02731-o001_t017_nircam_clear-f200w\jw02731-o001_t017_nircam_clear-f200w_i2d.fits
 jw02731-o001_t017_nircam_clear-f335m,jw02731-o001_t017_nircam_clear-f335m_i2d.fits,I2D,F335M,CLEAR,combined,0,0,944968320,ok,C:\data\jwst_i2d\mastDownload\JWST\jw02731-o001_t017_nircam_clear-f335m\jw02731-o001_t017_nircam_clear-f335m_i2d.fits
+jw02731-o001_t017_nircam_clear-f444w,jw02731-o001_t017_nircam_clear-f444w_i2d.fits,I2D,F444W,CLEAR,combined,0,0,944968320,ok,C:\data\jwst_i2d\mastDownload\JWST\jw02731-o001_t017_nircam_clear-f444w\jw02731-o001_t017_nircam_clear-f444w_i2d.fits
 jw02731001001_02105_00001_nrca1,jw02731001001_02105_00001_nrca1_i2d.fits,I2D,F200W,CLEAR,nrca1,1,1,118702080,ok,C:\data\jwst_i2d\mastDownload\JWST\jw02731001001_02105_00001_nrca1\jw02731001001_02105_00001_nrca1_i2d.fits
 jw02731001001_02105_00001_nrca2,jw02731001001_02105_00001_nrca2_i2d.fits,I2D,F200W,CLEAR,nrca2,1,1,118480320,ok,C:\data\jwst_i2d\mastDownload\JWST\jw02731001001_02105_00001_nrca2\jw02731001001_02105_00001_nrca2_i2d.fits
 jw02731001001_02105_00001_nrca4,jw02731001001_02105_00001_nrca4_i2d.fits,I2D,F200W,CLEAR,nrca4,1,1,118702080,ok,C:\data\jwst_i2d\mastDownload\JWST\jw02731001001_02105_00001_nrca4\jw02731001001_02105_00001_nrca4_i2d.fits
@@ -40,7 +41,6 @@ jw02731001002_02105_00003_nrca1,jw02731001002_02105_00003_nrca1_i2d.fits,I2D,F20
 jw02731001002_02105_00003_nrca2,jw02731001002_02105_00003_nrca2_i2d.fits,I2D,F200W,CLEAR,nrca2,2,3,118480320,ok,C:\data\jwst_i2d\mastDownload\JWST\jw02731001002_02105_00003_nrca2\jw02731001002_02105_00003_nrca2_i2d.fits
 jw02731001002_02105_00004_nrcb2,jw02731001002_02105_00004_nrcb2_i2d.fits,I2D,F200W,CLEAR,nrcb2,2,4,118702080,ok,C:\data\jwst_i2d\mastDownload\JWST\jw02731001002_02105_00004_nrcb2\jw02731001002_02105_00004_nrcb2_i2d.fits
 jw02731001002_02105_00004_nrcb3,jw02731001002_02105_00004_nrcb3_i2d.fits,I2D,F200W,CLEAR,nrcb3,2,4,118702080,ok,C:\data\jwst_i2d\mastDownload\JWST\jw02731001002_02105_00004_nrcb3\jw02731001002_02105_00004_nrcb3_i2d.fits
-jw02731-o001_t017_nircam_clear-f444w,jw02731-o001_t017_nircam_clear-f444w_i2d.fits,I2D,F444W,CLEAR,combined,0,0,0,missing,
 jw02731-o001_t017_nircam_f444w-f470n,jw02731-o001_t017_nircam_f444w-f470n_i2d.fits,I2D,F444W,F470N,combined,0,0,0,missing,
 jw02731001001_02101_00001_nrca1,jw02731001001_02101_00001_nrca1_i2d.fits,I2D,F187N,CLEAR,nrca1,1,1,0,missing,
 jw02731001001_02101_00001_nrca2,jw02731001001_02101_00001_nrca2_i2d.fits,I2D,F187N,CLEAR,nrca2,1,1,0,missing,

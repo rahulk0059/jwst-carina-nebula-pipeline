@@ -1,0 +1,82 @@
+{
+  "v1_nrcalong": {
+    "visit": 1,
+    "detector": "nrcalong",
+    "n_matched": 378,
+    "dx_median": -0.0038011060034932598,
+    "dy_median": 0.01422060925574442,
+    "offset_median": 0.06080016705567992,
+    "offset_mad": 0.026906956747012642,
+    "n_frame_stars": 400
+  },
+  "v1_nrcblong": {
+    "visit": 1,
+    "detector": "nrcblong",
+    "n_matched": 376,
+    "dx_median": 0.005116725406878686,
+    "dy_median": -0.006647098411576735,
+    "offset_median": 0.04834747479030074,
+    "offset_mad": 0.02253018817526204,
+    "n_frame_stars": 400
+  },
+  "v2_nrcalong": {
+    "visit": 2,
+    "detector": "nrcalong",
+    "n_matched": 394,
+    "dx_median": 0.12098345978415637,
+    "dy_median": -0.20493880895077154,
+    "offset_median": 0.245216093508487,
+    "offset_mad": 0.050092716425869294,
+    "n_frame_stars": 400
+  },
+  "v2_nrcblong": {
+    "visit": 2,
+    "detector": "nrcblong",
+    "n_matched": 386,
+    "dx_median": 0.19874540193313806,
+    "dy_median": -0.29584910464491543,
+    "offset_median": 0.3612384675830863,
+    "offset_mad": 0.05296762226497867,
+    "n_frame_stars": 400
+  },
+  "v3_nrcalong": {
+    "visit": 3,
+    "detector": "nrcalong",
+    "n_matched": 391,
+    "dx_median": 0.17841797827338723,
+    "dy_median": -0.17094905468354682,
+    "offset_median": 0.2495893592061924,
+    "offset_mad": 0.06118854587758982,
+    "n_frame_stars": 400
+  },
+  "v3_nrcblong": {
+    "visit": 3,
+    "detector": "nrcblong",
+    "n_matched": 387,
+    "dx_median": 0.20779954916906718,
+    "dy_median": -0.20851782003410335,
+    "offset_median": 0.30531752335957363,
+    "offset_mad": 0.054716655110072177,
+    "n_frame_stars": 400
+  },
+  "v4_nrcalong": {
+    "visit": 4,
+    "detector": "nrcalong",
+    "n_matched": 383,
+    "dx_median": 0.31213207397740916,
+    "dy_median": -0.3850077078946015,
+    "offset_median": 0.5022818018731592,
+    "offset_mad": 0.03990030937640554,
+    "n_frame_stars": 400
+  },
+  "v4_nrcblong": {
+    "visit": 4,
+    "detector": "nrcblong",
+    "n_matched": 374,
+    "dx_median": 0.32084936246974394,
+    "dy_median": -0.37780444210488895,
+    "offset_median": 0.5045005308412738,
+    "offset_mad": 0.0497090506940126,
+    "n_frame_stars": 400
+  }
+}
