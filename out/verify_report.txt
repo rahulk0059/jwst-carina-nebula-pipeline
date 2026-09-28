@@ -1,60 +1,13 @@
 
 cal: C:\data\jwst_cal\mastDownload\JWST
-  560 ok, 0 size_mismatch, 40 missing, 0 extra (600 rows, 65.841 GB on disk)
-  gating scope: filters F444W;CLEAR
+  600 ok, 0 size_mismatch, 0 missing, 0 extra (600 rows, 70.544 GB on disk)
   problems (gating)
     none
-  absent, outside the gating scope (40 rows)
-            status      expected        actual  filename
-           missing   117,573,120             0  jw02731001001_02101_00001_nrcalong_cal.fits
-           missing   117,573,120             0  jw02731001001_02101_00001_nrcblong_cal.fits
-           missing   117,573,120             0  jw02731001001_02101_00002_nrcalong_cal.fits
-           missing   117,573,120             0  jw02731001001_02101_00002_nrcblong_cal.fits
-           missing   117,573,120             0  jw02731001001_02101_00003_nrcalong_cal.fits
-           missing   117,573,120             0  jw02731001001_02101_00003_nrcblong_cal.fits
-           missing   117,573,120             0  jw02731001001_02101_00004_nrcalong_cal.fits
-           missing   117,573,120             0  jw02731001001_02101_00004_nrcblong_cal.fits
-           missing   117,573,120             0  jw02731001001_02101_00005_nrcalong_cal.fits
-           missing   117,573,120             0  jw02731001001_02101_00005_nrcblong_cal.fits
-           missing   117,573,120             0  jw02731001002_02101_00001_nrcalong_cal.fits
-           missing   117,573,120             0  jw02731001002_02101_00001_nrcblong_cal.fits
-           missing   117,573,120             0  jw02731001002_02101_00002_nrcalong_cal.fits
-           missing   117,573,120             0  jw02731001002_02101_00002_nrcblong_cal.fits
-           missing   117,573,120             0  jw02731001002_02101_00003_nrcalong_cal.fits
-           missing   117,573,120             0  jw02731001002_02101_00003_nrcblong_cal.fits
-           missing   117,573,120             0  jw02731001002_02101_00004_nrcalong_cal.fits
-           missing   117,573,120             0  jw02731001002_02101_00004_nrcblong_cal.fits
-           missing   117,573,120             0  jw02731001002_02101_00005_nrcalong_cal.fits
-           missing   117,573,120             0  jw02731001002_02101_00005_nrcblong_cal.fits
-           missing   117,573,120             0  jw02731001003_02101_00001_nrcalong_cal.fits
-           missing   117,573,120             0  jw02731001003_02101_00001_nrcblong_cal.fits
-           missing   117,573,120             0  jw02731001003_02101_00002_nrcalong_cal.fits
-           missing   117,573,120             0  jw02731001003_02101_00002_nrcblong_cal.fits
-           missing   117,573,120             0  jw02731001003_02101_00003_nrcalong_cal.fits
-           missing   117,573,120             0  jw02731001003_02101_00003_nrcblong_cal.fits
-           missing   117,573,120             0  jw02731001003_02101_00004_nrcalong_cal.fits
-           missing   117,573,120             0  jw02731001003_02101_00004_nrcblong_cal.fits
-           missing   117,573,120             0  jw02731001003_02101_00005_nrcalong_cal.fits
-           missing   117,573,120             0  jw02731001003_02101_00005_nrcblong_cal.fits
-           missing   117,573,120             0  jw02731001004_02101_00001_nrcalong_cal.fits
-           missing   117,573,120             0  jw02731001004_02101_00001_nrcblong_cal.fits
-           missing   117,573,120             0  jw02731001004_02101_00002_nrcalong_cal.fits
-           missing   117,573,120             0  jw02731001004_02101_00002_nrcblong_cal.fits
-           missing   117,573,120             0  jw02731001004_02101_00003_nrcalong_cal.fits
-           missing   117,573,120             0  jw02731001004_02101_00003_nrcblong_cal.fits
-           missing   117,573,120             0  jw02731001004_02101_00004_nrcalong_cal.fits
-           missing   117,573,120             0  jw02731001004_02101_00004_nrcblong_cal.fits
-           missing   117,573,120             0  jw02731001004_02101_00005_nrcalong_cal.fits
-           missing   117,573,120             0  jw02731001004_02101_00005_nrcblong_cal.fits
 
 i2d: C:\data\jwst_i2d\mastDownload\JWST
-  42 ok, 0 size_mismatch, 564 missing, 0 extra (606 rows, 22.534 GB on disk)
-  gating scope: filters F444W;CLEAR
+  43 ok, 0 size_mismatch, 563 missing, 0 extra (606 rows, 23.479 GB on disk)
   problems (gating)
-    none
-  absent, outside the gating scope (564 rows)
             status      expected        actual  filename
-           missing   944,254,080             0  jw02731-o001_t017_nircam_f444w-f470n_i2d.fits
            missing   118,702,080             0  jw02731001001_02101_00001_nrca1_i2d.fits
            missing   118,480,320             0  jw02731001001_02101_00001_nrca2_i2d.fits
            missing   119,044,800             0  jw02731001001_02101_00001_nrca3_i2d.fits
@@ -619,5 +572,4 @@ i2d: C:\data\jwst_i2d\mastDownload\JWST
            missing   119,044,800             0  jw02731001004_02105_00005_nrcb4_i2d.fits
            missing   120,254,400             0  jw02731001004_02105_00005_nrcblong_i2d.fits
 
-(604 absent row(s) outside the gating scope are listed above but do not affect the exit code)
-VERIFY OK: every gated file is present with the exact size
+VERIFY FAILED: 563 problem(s) need attention

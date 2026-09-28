@@ -16,10 +16,10 @@ The heavy `jwst` package is **not** required. WCS comes from the `SCI` header
 
 ## Current status
 
-**All five NIRCam filters are built and validated - three 160-frame short-wave
-and both long-wave. Nothing is in progress.** This is the cold-start summary;
-the sections after it hold the evidence, and the per-filter sections are the
-authority for their own numbers.
+**All six NIRCam products are built and validated - three 160-frame short-wave
+and all three long-wave bandpasses. Nothing is in progress.** This is the
+cold-start summary; the sections after it hold the evidence, and the
+per-filter sections are the authority for their own numbers.
 
 | filter | mosaic | gauge, measured | median offset vs official i2d | within 0.5 px | matched stars |
 |--------|--------|-----------------|-------------------------------|--------------|---------------|
@@ -27,28 +27,37 @@ authority for their own numbers.
 | F090W | `out/f090w_all_detectors_mosaic.fits` (2.11 GB) | visit 1, 0.031 px, `explicit` | **0.1384 px** | 78.5% | 5428 / 6000 |
 | F187N | `out/f187n_all_detectors_mosaic.fits` (2.11 GB) | visit 1, 0.0060 px, `explicit` | **0.0647 px** | 99.3% | 5908 / 6000 |
 | F335M (native grid) | `out/f335m_all_detectors_mosaic.fits` (0.52 GB) | visit 1, 0.0054 px, `explicit` | **0.1000 px** = 0.00629" | 98.7% | 5619 / 6000 |
-| F335M (cross-check) | `out/f335m_all_detectors_mosaic_0031grid.fits` (2.11 GB) | visit 1, `explicit` | **0.1801 px** = 0.00558" | 83.6% | 5432 / 6000 |
+| F335M (cross-check) | `out/f335m_all_detectors_mosaic_0031grid.fits` (2.11 GB) | visit 1, `explicit` | **0.1801 px** = 0.01133" | 83.6% | 5432 / 6000 |
 | F444W (native grid) | `out/f444w_all_detectors_mosaic.fits` (0.52 GB) | visit 1, 0.0038 px, `explicit` | **0.1034 px** = 0.00650" | 98.4% | 5802 / 6000 |
-| F444W (cross-check) | `out/f444w_all_detectors_mosaic_0031grid.fits` (2.11 GB) | visit 1, `explicit` | **0.1923 px** = 0.00596" | 80.5% | 5504 / 6000 |
+| F444W (cross-check) | `out/f444w_all_detectors_mosaic_0031grid.fits` (2.11 GB) | visit 1, `explicit` | **0.1923 px** = 0.01210" | 80.5% | 5504 / 6000 |
+| F444W;F470N (native grid) | `out/f444w_f470n_all_detectors_mosaic.fits` (0.52 GB) | visit 1, 0.0058 px, `explicit` | **0.0818 px** = 0.00515" | 98.4% | 5714 / 6000 |
+| F444W;F470N (cross-check) | `out/f444w_f470n_all_detectors_mosaic_0031grid.fits` (2.11 GB) | visit 1, `explicit` | **0.1492 px** = 0.00939" | 84.0% | 5497 / 6000 |
 
-**Every filter in program 2731 that this code path covers is now done.**
-`F444W;F470N` is the one remaining NIRCam product and is deliberately out of
-scope - it is a separate bandpass with its own i2d, and it is *not* downloaded
-(its 40 cal rows are the remaining `missing` rows in the manifests). Do not
-"helpfully" add it to an F444W run.
+**Every NIRCam product in program 2731 that this code path covers is now done -
+six, including all three long-wave bandpasses.** `F444W;F470N` is built and
+validated on both grids; its artifacts are `out/f444w_f470n_*`, kept separate
+from the CLEAR run's `out/f444w_*` throughout.
 
-**The two long-wave filters are the odd ones out, and the reason is measured,
-not guessed.** Both are 2 detectors at native 0.0629"/px, not 0.031, so their
-pixels are 2.03x larger and their absolute accuracy is ~3x worse in arcsec
-(0.0063-0.0065" vs 0.0016-0.0020"). Their 0.031-grid cross-checks exist only to
-make them unit-comparable with the three short-wave; cite the **native** figures
-as their accuracy (F335M 0.1000 px / 0.00629", F444W 0.1034 px / 0.00650"),
-because the fine grid inflates their scatter ~2x by upsampling the reference.
-Both residuals are dominated by the same unidentifiable per-detector offset
-(14 cross-visit edges each, all within one detector) - see "F335M measured run"
-and "F444W measured run". `out/grid.fits` is unchanged; the long-wave grid is
-`out/grid_f335m/grid.fits`, **shared by both long-wave filters** because their
-footprints are measurably identical.
+**The three long-wave products are the odd ones out, and the reason is
+measured, not guessed.** All are 2 detectors at native 0.0629"/px, not 0.031,
+so their pixels are 2.03x larger and their absolute accuracy is ~3x worse in
+arcsec (0.0052-0.0065" vs 0.0016-0.0023"). Their 0.031-grid cross-checks exist
+only to make them unit-comparable with the short-wave; cite the **native**
+figures as their accuracy, because the fine grid inflates their scatter ~1.8x
+by upsampling the reference:
+
+| product | native | 0.031 cross-check | cross/native |
+|---------|--------|-------------------|--------------|
+| F335M | 0.1000 px / 0.00629" | 0.1801 px / 0.01133" | 1.80x |
+| F444W;CLEAR | 0.1034 px / 0.00650" | 0.1923 px / 0.01210" | 1.86x |
+| F444W;F470N | **0.0818 px / 0.00515"** | 0.1492 px / 0.00939" | 1.82x |
+
+All three residuals are dominated by the same unidentifiable per-detector
+offset (14 cross-visit edges each, all within one detector) - see "F335M
+measured run", "F444W measured run" and "F444W;F470N measured run".
+`out/grid.fits` is unchanged; the long-wave grid is `out/grid_f335m/grid.fits`,
+**shared by all three long-wave products** because their footprints agree
+closely (F335M and F444W;CLEAR to the pixel, F470N within 2 px).
 
 Shared properties of the three short-wave mosaics: one grid (`out/grid.fits`, ny 15895 x
 nx 22130), 352 tiles at 1024 px, 120.2-120.3 Mpx covered (34.2% of the grid),
@@ -87,31 +96,34 @@ To re-check the shipped state from scratch:
 ```
 
 `verify` is left unscoped here on purpose - the manifests are whole-program disk
-truth, so this scan is what reports the state of every filter. It flags the 40
-`F444W;F470N` cal and 564 per-exposure i2d products that were deliberately never
-fetched as `missing`, prints `VERIFY FAILED: 604 problem(s) need attention`, and
-**exits 1**. That is the healthy result, not corruption: what must be zero is
-`size_mismatch` and `extra`. For a zero exit code, scope the gate to what you
-actually fetched, e.g.
+truth, so this scan is what reports the state of every filter. It flags the 563
+per-exposure i2d products that were deliberately never fetched as `missing`,
+prints `VERIFY FAILED: 563 problem(s) need attention`, and **exits 1**. That is
+the healthy result, not corruption: what must be zero is `size_mismatch` and
+`extra` - and the cal side is now **fully present, 600 ok and 0 missing**, so
+every `missing` row left is a per-exposure i2d this project does not use. For a
+zero exit code, scope the gate to what you actually fetched, e.g.
 `verify --require F187N --require-kind CAL --outdir out`, or
-`verify --require "F444W;CLEAR" --outdir out` for the long-wave run.
+`verify --require "F444W;F470N" --outdir out` for the narrowband run.
 
 ## What's next
 
 Nothing below is needed to use what is shipped. Pick one.
 
-1. **Every filter this code path covers is done - five, both grids where
-   relevant.** The long-wave pair, F335M and F444W, are measured, built on both
-   grids and validated on both, and they agree to within 4% in arcsec:
-   F335M **0.1000 px / 0.00629"** native, F444W **0.1034 px / 0.00650"** native.
-   Both are ~3x worse in arcsec than the three short-wave filters, for a
-   *measured* reason - an unidentifiable per-detector offset, not a bug - and
-   both 0.031-grid cross-checks (0.1801 and 0.1923 px) exist only for
-   unit-comparability with the short-wave three. Read "F335M measured run" and
-   "F444W measured run" before quoting either; both contain the same warning
-   about which of the two numbers to cite.
-   The only unrun NIRCam product left is `F444W;F470N`, deliberately, because it
-   is a different bandpass with its own i2d.
+1. **Every NIRCam product in program 2731 this code path covers is done - six,
+   both grids where relevant.** The long-wave trio, `F335M`, `F444W;CLEAR` and
+   `F444W;F470N`, are all measured, built on both grids and validated on both:
+   **0.1000 px / 0.00629"**, **0.1034 px / 0.00650"** and **0.0818 px /
+   0.00515"** native. They are ~2.5-3x worse in arcsec than the three short-wave
+   filters, for a *measured* reason - an unidentifiable per-detector offset, not
+   a bug - and their 0.031-grid cross-checks (0.1801, 0.1923, 0.1492 px) exist
+   only for unit-comparability with the short-wave three. **The grids agree on
+   the solution** (per-visit steps scale by 2.029, residual rms agrees to
+   0.0-0.6% in arcsec) but not on the star-match median, which degrades
+   ~1.8x for all three - see the arcsec gotcha before quoting any cross-check
+   number. Read the three long-wave run sections before quoting any of them;
+   each contains the warning about which of the two numbers to cite.
+   The project has no unrun NIRCam product left.
 2. **Rotation-aware per-group registration.** Scoped, deliberately **not**
    implemented - see "Deferred: rotation-aware per-group registration". Worth
    ~20% of F090W's residual and nothing of the unidentifiable inter-detector
@@ -121,7 +133,7 @@ Nothing below is needed to use what is shipped. Pick one.
    centroid floor and PSF-difference bias against the drizzle; neither is
    characterised. This is measurement work, not a code fix.
 4. **Pause for productization.** The code is at a natural stopping point: 168
-   offline tests, no linter, five validated end-to-end results, and a git
+   offline tests, no linter, six validated end-to-end results, and a git
    baseline. If the goal
    becomes a reusable tool rather than a set of measurement results, the
    remaining work is packaging, a config file instead of eight `--detector`
@@ -235,30 +247,29 @@ gauge that failed.
 - cal: `C:\data\jwst_cal\mastDownload\JWST`
 - i2d: `C:\data\jwst_i2d\mastDownload\JWST`
 
-Verified state as of the last `verify` run (F335M cal + combined i2d now on
-disk, so the long-wave set is half present):
+Verified state as of the last `verify` run (**every cal file program 2731
+offers is now on disk - 600 ok, 0 missing**):
 
 | root | files | size | status |
 |------|-------|------|--------|
-| cal | 560 | 65.84 GB (61.32 GiB) | 560 ok, 0 size_mismatch, 40 missing, 0 extra |
-| i2d | 42 | 22.53 GB (20.99 GiB) | 42 ok, 0 size_mismatch, 564 missing, 0 extra |
-| **total** | **602** | **88.38 GB** (82.31 GiB) | |
+| cal | 600 | 70.54 GB (65.68 GiB) | **600 ok**, 0 size_mismatch, **0 missing**, 0 extra |
+| i2d | 43 | 23.48 GB (21.86 GiB) | 43 ok, 0 size_mismatch, 563 missing, 0 extra |
+| **total** | **643** | **94.02 GB** (87.54 GiB) | |
 
-The 560 cal files are the short-wave set (8 detectors x 60 exposures for F090W,
-F187N and F200W) **plus F335M's and F444W;CLEAR's 40 long-wave files each**. The
-**40 "missing" cal files are `F444W;F470N`** (`nrcalong`/`nrcblong`) - still
-deliberately not downloaded, and the same population the F444W;F470N row in the
-combined-i2d table below refers to. Of the 42 i2d on disk, **5 are the combined
-all-visit products**
+The 600 cal files are the short-wave set (8 detectors x 60 exposures for F090W,
+F187N and F200W) **plus all three long-wave bandpasses' 40 files each**
+(`F335M`, `F444W;CLEAR`, `F444W;F470N`). There are **no missing cal files left**
+- the manifest's 80 F444W-named rows are the two pupils, and both are present.
+Of the 43 i2d on disk, **6 are the combined all-visit products**
 (the ones validation actually uses) and 37 are per-exposure F200W products
-from the original validation subset. The 564 "missing" i2d are the per-exposure
-products for the other filters plus the F470N combined product; they are
-listed in the manifest on purpose, because the manifest is an inventory of what
-MAST offers versus what is on disk, not a record of intent. Do not "fix" them
-by downloading unless asked.
+from the original validation subset. The 563 "missing" i2d are **entirely
+per-exposure products**, which this project never fetches: Stage-4 validation
+uses the combined i2d alone. They are listed in the manifest on purpose,
+because the manifest is an inventory of what MAST offers versus what is on
+disk, not a record of intent. Do not "fix" them by downloading unless asked.
 
 MAST's advertised sizes are not uniform, and `verify` requires an **exact**
-per-product match: 520 of the 560 cal files are 117,573,120 B, while 40 F200W
+per-product match: 520 of the 600 cal files are 117,573,120 B, while 40 F200W
 files are 117,570,240 B. Both count as `ok`.
 
 ## Manifest rule
@@ -1034,7 +1045,7 @@ possible. Combined all-visit products in program 2731:
 | F200W | `jw02731-o001_t017_nircam_clear-f200w_i2d.fits` (5,420,381,760 B) | 160 | yes - **done** |
 | F335M | `jw02731-o001_t017_nircam_clear-f335m_i2d.fits` (944,968,320 B) | 40 (long-wave, 4 visits) | no - 2 long-wave detectors; **done - 0.1000 px native, 0.1801 px on the 0.031 grid** |
 | F444W | `jw02731-o001_t017_nircam_clear-f444w_i2d.fits` (944,968,320 B) | 40 (long-wave, 4 visits) | no - 2 long-wave detectors; **done - 0.1034 px native, 0.1923 px on the 0.031 grid** |
-| F444W;F470N | `jw02731-o001_t017_nircam_f444w-f470n_i2d.fits` (944,254,080 B) | 40 (long-wave, 4 visits) | no - 2 long-wave detectors; **not downloaded, deliberately** |
+| F444W;F470N | `jw02731-o001_t017_nircam_f444w-f470n_i2d.fits` (944,254,080 B) | 40 (long-wave, 4 visits) | no - 2 long-wave detectors; **done - 0.0818 px native, 0.1492 px on the 0.031 grid** |
 
 All three 160-frame short-wave filters are downloaded and done, and so are both
 long-wave filters in the CLEAR pupil. The F335M and F444W sets are **not**
@@ -1087,12 +1098,14 @@ F444W-named cal rows. The combined i2d at ~944 MB is correspondingly the
   both long-wave filters are inside the existing grid *by construction*.
   **Measured, not estimated** (see "F335M: measured scales and the two-grid
   decision" below): F335M cal is 0.062752/0.062851 arcsec/px, F444W;CLEAR cal is
-  0.062756/0.062855, both official combined i2d are native 0.062904, and the
+  0.062756/0.062855, F444W;F470N is 0.062784/0.062881, the three official
+  combined i2d are native 0.062904 / 0.062908 / 0.062936, and the
   existing grid is 0.031000 - so the existing grid oversamples the long-wave
   data by **2.029x**. A second grid was built at the native scale rather than
-  reusing the first, and **both long-wave filters share it** (measured: their
-  footprints are the same box to the pixel, x 5331..16750 / y 75..15849 on the
-  0.031 grid and x 2638..8275 / y 47..7831 on the native one).
+  reusing the first, and **all three long-wave products share it** (measured:
+  F335M's and F444W;CLEAR's footprints are the same box to the pixel, x
+  5331..16750 / y 75..15849 on the 0.031 grid and x 2638..8275 / y 47..7831 on
+  the native one; F470N's is 2 px off and still contained 40/40).
 - **`_grid_bbox` clamps, so it cannot answer "does it fit" on its own.** It
   clips to the grid (`jwst_stack/mosaic.py`), returning a truncated box rather
   than `None` for an overrunning frame. Compare the *unclamped* extent against
@@ -1205,19 +1218,24 @@ from the same all-six-observation union. `out/grid.fits` was **not** touched -
 its three shipped mosaics remain valid, which is why the second grid lives at a
 different path (`--outdir out/grid_f335m --scale 0.0629`).
 
-**That directory is the long-wave grid, despite the name, and both long-wave
-filters share it.** The name says F335M because F335M is what it was built for;
-nothing in the file is F335M-specific, and F444W;CLEAR reuses it unchanged. That
-is a measured decision, not an assumption. On this grid F444W;CLEAR's 40 frames
+**That directory is the long-wave grid, despite the name, and all three
+long-wave products share it.** The name says F335M because F335M is what it was
+built for; nothing in the file is F335M-specific, and F444W;CLEAR reuses it
+unchanged, as does F444W;F470N. That is a measured decision, not an
+assumption. On this grid F444W;CLEAR's 40 frames
 occupy the *identical* box as F335M's - x 2638..8275, y 47..7831, margins
 2638/2662/47/33 - and on `out/grid.fits` the identical x 5331..16750, y
-75..15849. Their two s_region polygons agree to 5 decimal places in RA/Dec
+75..15849. Their two s_region polygons agree to 0.02" in RA/Dec
 (F335M 159.11859..159.30717 / -58.68780..-58.55211, F444W;CLEAR
 159.11859..159.30716 / -58.68781..-58.55211), i.e. the two filters are the same
 pointing, and their cal scales agree to four significant figures (0.062752 /
-0.062851 versus 0.062756 / 0.062855). A third grid would have been a
-byte-different copy of a shared grid. Build a new one only if a filter's
-footprint or scale actually diverges, and check it here first.
+0.062851 versus 0.062756 / 0.062855). **`F444W;F470N` is the first case that is
+*near* but not *exactly* co-located** - 0.24" in `s_region` and 2 px in bbox -
+and it still shares this grid, on containment plus a grid/i2d scale ratio of
+0.9994 that is the closest of the three. See "F444W;F470N measured run". A
+third grid would have been a byte-different copy of a shared grid. Build a new
+one only if a filter's footprint or scale actually diverges, and check it here
+first.
 
 The deciding argument is the *validation*, not the mosaic. `compare --tiled`
 reprojects the official i2d onto the mosaic grid, so on the 0.031 grid it would
@@ -1308,32 +1326,40 @@ one for parity with F200W.
 | matched | 5619 / 6000 | 5432 / 6000 |
 | median dx, dy | -0.0347, -0.0159 | -0.0577, -0.0172 |
 | **median abs offset** | **0.1000 px** | **0.1801 px** |
-| ...in arcsec | **0.00629** | **0.00558** |
+| ...in arcsec (x i2d 0.062904) | **0.00629** | **0.01133** |
 | offset MAD | 0.0828 | 0.1592 |
 | 16-84 pct | 0.0396 / 0.2456 | 0.0732 / 0.5053 |
 | rms dx, dy | 0.1879, 0.1904 | 0.4197, 0.4886 |
-| ...in arcsec | 0.0118 | 0.0130 |
+| ...in arcsec (x i2d 0.062904) | 0.0118, 0.0120 | 0.0264, 0.0307 |
 | within 0.5 px | 98.7% | 83.6% |
 | i2d coverage | 97.5% | 401.4% |
 | wall time | 0.9 min | 3.6 min |
 
-**What the two grids establish.** They are the same astrometry, resampled: the
-cross-visit residual rms and every applied step scale by exactly 2.029
-(0.051 -> 0.103 px; v2 0.418 -> 0.849; v3 0.480 -> 0.975; v4 0.480 -> 0.972),
-and the covered fraction is 33.5% vs 33.7%. So the second grid is a genuine
-independent check of the first, and it passes. The median agrees in arcsec to
-11% (0.00629 vs 0.00558), which is the useful result: **the grid choice does
-not bias the headline number**, so the cross-filter comparison is legitimate.
+**What the two grids establish.** They are the same astrometry, resampled, and
+that is measurable **in arcsec, in the correct pixel space**: the cross-visit
+residual rms is 0.0509 grid px on the native grid and 0.1026 grid px on the
+fine one, i.e. **0.00320" against 0.00318" - agreement to 0.6%**. Every applied
+per-visit step scales by 2.026-2.029 against the expected 2.029 (v2 0.3197 ->
+0.6485; v3 0.3077 -> 0.6242; v4 0.2986 -> 0.6059), and the covered fraction is
+33.5% vs 33.7%. So the second grid is a genuine independent check of the first,
+and the **solution** passes.
 
-**But the native grid is the better instrument, and by more than the median
+**But the star-match median is 1.8x worse in arcsec on the fine grid** (0.01133"
+against 0.00629"), and that is *not* a disagreement about astrometry - it is the
+upsampled reference. An earlier version of this file reported the cross-check as
+0.00558" and called the two grids agreeing "to 11%". That number was wrong: it
+multiplied an i2d-pixel offset by the 0.031 *grid* scale instead of the 0.062904
+*i2d* scale, understating it by exactly 50.7%, and the "agreement" was an
+artefact of the two errors partly cancelling. Corrected, the fine-grid median
+is honestly worse, by the same ~1.8x the other two long-wave products show.
+
+**The native grid is the better instrument, and by more than the median
 shows.** Everything about the *spread* degrades on the fine grid, in the
-predicted direction: p84 0.246 -> 0.505 px, rms 0.0118 -> 0.0130 arcsec,
-within-0.5 px 98.7% -> 83.6%, matched 5619 -> 5432. That is the upsampled
-reference biting - the i2d is 2.03x coarser than the fine grid, so
-`reproject` interpolates it and its centroids wander. **Report F335M as
-0.0063 arcsec (0.1000 px native) and cite 0.1801 px / 0.0056 arcsec only as
+predicted direction: p84 0.246 -> 0.505 px, rms 0.0118 -> 0.0264 arcsec,
+within-0.5 px 98.7% -> 83.6%, matched 5619 -> 5432. **Report F335M as
+0.0063 arcsec (0.1000 px native) and cite 0.1801 px / 0.01133 arcsec only as
 the same-grid figure for the floor table.** Reporting the fine-grid number as
-F335M's accuracy would understate its scatter by ~2x.
+F335M's accuracy would understate its scatter by ~1.8x.
 
 **F335M is ~3x worse in arcsec than the three short-wave filters** (0.0063 vs
 0.0016-0.0020 arcsec), and the cause is measured, not guessed. The cross-visit
@@ -1385,7 +1411,8 @@ difference in F335M, not anything astrometric.
 
 ### F444W measured run
 
-F444W;CLEAR is the **last filter in this code path**, and it behaves almost
+F444W;CLEAR is the **second of three long-wave products in this code path**, and
+it behaves almost
 exactly like F335M - which is the useful result, because the two are the same
 channel pointed the same way. Everything below is measured, not carried over
 from F335M.
@@ -1470,11 +1497,11 @@ for parity with F200W and F335M.
 | matched | 5802 / 6000 | 5504 / 6000 |
 | median dx, dy | -0.0411, -0.0216 | -0.0670, -0.0304 |
 | **median abs offset** | **0.1034 px** | **0.1923 px** |
-| ...in arcsec | **0.00650** | **0.00596** |
+| ...in arcsec (x i2d 0.062908) | **0.00650** | **0.01210** |
 | offset MAD | 0.0925 | 0.1922 |
 | 16-84 pct | 0.0381 / 0.2538 | 0.0640 / 0.5456 |
 | rms dx, dy | 0.1878, 0.2255 | 0.4442, 0.4852 |
-| ...in arcsec | 0.0118, 0.0142 | 0.0138, 0.0150 |
+| ...in arcsec (x i2d 0.062908) | 0.0118, 0.0142 | 0.0279, 0.0305 |
 | within 0.5 px | 98.4% | 80.5% |
 | i2d coverage | 97.4% | 401.4% |
 | background diff | **+0.1120** MJy/sr | **+0.1123** MJy/sr |
@@ -1490,15 +1517,18 @@ for parity with F200W and F335M.
   F090W does not show it - the long-wave residual is already dominated by the
   larger, unidentifiable per-detector term, so there is no smaller floor left to
   find underneath.
-- **The two grids say the same thing**, so the headline is not a grid artefact.
-  Every cross-visit step scales by 2.006-2.019 against the expected 2.029
-  (v2 0.4315 -> 0.8699 px, v3 0.5142 -> 1.0316, v4 0.4895 -> 0.9884; residual rms
-  0.0596 -> 0.1204 px, ratio 2.021), and the median agrees in arcsec to **8.4%**
-  (0.00650 vs 0.00596) - slightly *better* agreement than F335M's 11%.
+- **The two grids solve the same astrometry, and the solution is provably
+  grid-independent.** Every cross-visit step scales by 2.016-2.037 against the
+  expected 2.029 (v2 0.2982 -> 0.6074, v3 0.3055 -> 0.6211, v4 0.3118 ->
+  0.6285), and the residual rms is 0.0596 grid px native against 0.1204 on the
+  fine grid, i.e. **0.00375" against 0.00373" - agreement to 0.4%**. The
+  star-match *median* is 1.86x worse in arcsec on the fine grid (0.01210"
+  against 0.00650"), for the same upsampled-reference reason as F335M and
+  F470N, and it was previously mis-converted - see the arcsec gotcha.
 - **The fine grid is again the worse instrument, and again by the predicted
-  amount.** p84 0.254 -> 0.546 px, rms 0.0118 -> 0.0138 arcsec, within-0.5 px
+  amount.** p84 0.254 -> 0.546 px, rms 0.0118 -> 0.0279 arcsec, within-0.5 px
   98.4% -> 80.5%, matched 5802 -> 5504. Cite **0.1034 px / 0.00650"** as F444W's
-  accuracy; 0.1923 px / 0.00596" is only the same-grid figure for the floor
+  accuracy; 0.1923 px / 0.01210" is only the same-grid figure for the floor
   table.
 - **The background offset is a flux difference, not a grid artifact**: +0.1120
   native against +0.1123 on the fine grid, identical to 0.3%, exactly as F335M's
@@ -1513,6 +1543,141 @@ for parity with F200W and F335M.
   by up to 0.1160 px. It is **not fixable inside the mosaic**: closing it means
   gauging per-detector offsets to the official i2d, which is a weaker test by
   construction. Same conclusion as F335M, recorded not chased.
+
+### F444W;F470N measured run - the last product, and the best long-wave result
+
+`F444W;F470N` is the narrowband half of F444W, and it closes out the program.
+It was run through the same five-step procedure, and the first step was
+answered **before** any download, because the grid decision could not be
+assumed from the CLEAR run's result.
+
+**Does it share the long-wave grid? Measured, yes - but it is not identical to
+the pixel, and that distinction matters.** Three independent checks:
+
+| check | F335M | F444W;CLEAR | F444W;F470N |
+|-------|-------|-------------|--------------|
+| `s_region` dRA x dDec (arcsec) | 678.9 x 488.5 | 678.9 x 488.5 | 679.1 x 488.3 |
+| worst `s_region` corner vs F335M | - | 0.02" | **0.24"** (3.9 px) |
+| per-frame bbox on the native grid | x 2638..8275, y 47..7831 | **identical** | x 2638..**8277**, y **49**..**7829** |
+| contained | 40/40 | 40/40 | **40/40** |
+| grid margins (L/R/T/B px) | 2638/2662/47/33 | 2638/2662/47/33 | 2638/2660/**49**/**35** |
+| cal `NRCALONG` / `NRCBLONG` | 0.062752 / 0.062851 | 0.062756 / 0.062855 | **0.062784 / 0.062881** |
+| combined i2d native scale | 0.062904 | 0.062908 | **0.062936** |
+| grid / i2d scale | 0.9999 | 0.9999 | **0.9994** |
+| area needed on the grid | 43.88 Mpx | 43.88 Mpx | **43.87 Mpx** |
+
+F335M and F444W;CLEAR are co-located to the pixel; **F470N is 2 px off**, with a
+slightly larger pixel scale. The decision is still to share, and the deciding
+argument got *stronger*, not weaker: F470N's i2d is the coarsest of the three
+(0.062936), so the 0.0629 grid is the closest match to its reference
+(ratio 0.9994) and validation is nearest to identity. A third grid would have
+been 99.6% a duplicate. Note the honest framing: containment is comfortable
+(49 px minimum margin against a 3.9 px offset), but this is *not* the
+"identical footprint" argument that justified sharing for F335M/F444W.
+
+**Scales**, read from `SCI` headers via `io.sky_pixel_scale_arcsec` (no
+`CDELT1`/`CDELT2` in these files, as with F335M/F444W).
+
+**Download.** Plan read 40 cal (4.70 GB) + 1 combined i2d (0.94 GB) = 41 files,
+5.65 GB, with no mixed-pupil warning - identical to both other long-wave
+products. The unscoped problem count fell 604 -> **563**, and the cal side is
+now **600 ok, 0 missing**: every cal file program 2731 offers is on disk. The
+remaining 563 are per-exposure i2d products that were deliberately never
+fetched. One file needed a second pass (a `size_mismatch` on
+`jw02731001004_02101_00003_nrcalong_cal.fits`), caught by the exact-size check.
+
+**Step 2, `gauge`, with `--pupil F470N`** (0.3 arcsec = 4.77 px; 6312 stars in
+the i2d; 380-396 matched per group at a **95-99% match rate**, the highest of
+any filter here):
+
+| visit | dx | dy | \|offset\| | detector spread | internal rms | n_det |
+|-------|----|----|--------|-----------------|--------------|-------|
+| v1 | +0.0052 | +0.0024 | **0.0058** | 0.0119 | 0.0144 | 2 |
+| v2 | +0.1869 | -0.2395 | 0.3038 | 0.1357 | 0.0718 | 2 |
+| v3 | +0.2142 | -0.1840 | 0.2823 | 0.0490 | 0.0248 | 2 |
+| v4 | +0.3192 | -0.3859 | 0.5008 | 0.0060 | 0.0073 | 2 |
+
+**Anchor: visit 1 at 0.0058 px = 0.00036 arcsec**, `--gauge-visit 1` passed
+explicitly. Records: `out/f444w_f470n_step2.log`,
+`out/f444w_f470n_step2_detectors.json`. The pupil is in the filename stem
+(`filter_label` returns `F444W;F470N` -> stem `f444w_f470n`), verified to be
+cleanly separate from the CLEAR run: `git status` shows the F470N artifacts as
+new (`??`) and `git diff` on the CLEAR ones is empty, and **0 of 8 groups are
+byte-identical** between the two gauge JSONs - the narrowband really is a
+separate measurement, not a copy.
+
+**The prediction, stated before building**: the residual is the per-detector
+step a rigid per-visit translation cannot remove, so it should land in the same
+band as F335M and F444W, **0.08-0.18 px**, with v2's 0.1357 px detector spread
+setting the scale. Measured **0.0818 px**, at the very bottom of the band and
+better than either peer.
+
+| quantity | native 0.0629 | cross-check 0.0310 | (F444W;CLEAR native) |
+|----------|----------------|--------------------|-----------------------|
+| frames combined | 40/40 | 40/40 | 40/40 |
+| grid | 7864 x 10937 (86 Mpx) | 15895 x 22130 (352 Mpx) | shared |
+| tiles | 88 | 352 | 88 |
+| covered pixels | 28,781,757 (33.5%) | 118,493,429 (33.7%) | 28,755,247 (33.4%) |
+| max depth | 15 | 15 | 15 |
+| cross-visit edges | 14 | 14 | 14 |
+| cross-visit residual rms | 0.052 px | 0.105 px | 0.060 px |
+| frames shifted | 32/39, median 0.0536 px | 32/39 | 32/39, median 0.0578 px |
+| wall time | 11.3 min | 23.4 min | 14.0 min |
+| peak RSS | 2.81 GB | 8.72 GB | 2.93 GB |
+| output size | 0.52 GB | 2.11 GB | 0.52 GB |
+
+| star offsets | native 0.0629 | cross-check 0.0310 |
+|--------------|----------------|--------------------|
+| matched | 5714 / 6000 | 5497 / 6000 |
+| median dx, dy | -0.0284, -0.0069 | -0.0453, -0.0012 |
+| **median abs offset** | **0.0818 px** | **0.1492 px** |
+| ...in arcsec (x i2d 0.062936) | **0.00515** | **0.00939** |
+| offset MAD | 0.0700 | 0.1342 |
+| 16-84 pct | 0.0358 / 0.2391 | - |
+| rms dx, dy | 0.2382, 0.2514 | 0.5214, 0.5597 |
+| within 0.5 px | 98.4% | 84.0% |
+| i2d coverage | 97.6% | 402% |
+| background diff | **+0.1015** MJy/sr | **+0.1017** MJy/sr |
+
+**What this establishes.**
+
+- **F470N is the best of the three long-wave products: 0.0818 px / 0.00515"**,
+  19% better than F335M and 21% better than F444W;CLEAR, and the only long-wave
+  product under 0.0055". It is still ~2.5x the short-wave floor of
+  0.0020-0.0023", so it does **not** escape the long-wave limitation - it is the
+  same order, and the same cause.
+- **The grid sharing is verified, not assumed, and the solution is provably
+  grid-independent.** All six non-zero per-visit components scale by exactly
+  **2.029** on the two grids (v2 +0.2683/+0.3085 -> +0.5444/+0.6260, v3
+  +0.2846/+0.4168 -> +0.5774/+0.8456, v4 +0.3170/+0.3886 -> +0.6432/+0.7884),
+  against the expected 0.0629/0.031 = 2.029, and the residual rms is
+  **0.00324" against 0.00324" - agreement to 0.00%**. This is the cleanest
+  grid-independence result in the project, and it is what actually justifies
+  sharing `out/grid_f335m/grid.fits` across three products.
+- **The star-match median degrades 1.82x in arcsec on the fine grid**
+  (0.00939" against 0.00515"), matching F335M's 1.80x and F444W's 1.86x. Since
+  all three land at the same ratio, it is a property of the cross-check
+  instrument - upsampling a 0.063" i2d onto a 0.031" grid - and not something
+  about F470N. Cite the native figure.
+- **The background offset is a flux difference, not a grid artefact**:
+  +0.1015 native against +0.1017 on the fine grid, identical to 0.2%. It is
+  +2.5% of the official 4.0487 MJy/sr, the smallest relative background offset
+  of the three long-wave products.
+- **The identifiability wall is the same one, at the same size.** 14
+  cross-visit edges, all within a single detector, no same-visit and no
+  same-detector structure, so the per-detector offset is a free parameter.
+  Step 2 measures the two detectors differing by up to 0.1357 px (v2) while the
+  internal solve can fit only one step per visit. Not fixable inside the
+  mosaic - closing it means gauging per-detector offsets to the official i2d,
+  which is a weaker test by construction. Same conclusion as F335M and F444W,
+  recorded not chased.
+- **A registration JSON is bound to its gauge, and the code enforces it.**
+  Building with the default `--registration out/mosaic_registration.json` was
+  **refused**: "`--gauge-visit 1` cannot be applied to the cached registration,
+  which already encodes its own gauge. Re-run with `--recompute-registration`".
+  Each product therefore needs its own registration path
+  (`out/mosaic_registration_f444w_f470n.json`). Worth knowing before a
+  long-wave rerun: this is a safety feature, not an obstacle.
 
 ### Gotchas when re-measuring astrometry here
 
@@ -1531,12 +1696,37 @@ for parity with F200W and F335M.
   with margins 5331/5380/75/46 px. Pass `load_grid(path)[1]`, and instrument the
   three internal gates (finite sky / `cos_sep > 0` / finite grid pixel) before
   believing a `None`.
+- **Never convert a `compare` pixel offset using the grid's scale.** The two
+  pixel spaces in play are different and using the wrong one is a silent factor
+  of 2.029:
+  - `compare`'s star offsets are **i2d pixels** (the match runs in i2d pixel
+    space), so arcsec = `star_offset_median * i2d native scale`, read from
+    `open_i2d(...)[1].proj_plane_pixel_scales()`. Those scales are
+    **not** round numbers: F335M 0.062904, F444W;CLEAR 0.062908,
+    F444W;F470N **0.062936**.
+  - `mosaic`'s registration shifts and residual rms are **grid pixels** (the
+    solve runs on mosaic-grid crops), so arcsec = `px * grid scale`
+    (0.0629 / 0.031).
+
+  Getting this backwards understated every long-wave cross-check by exactly
+  50.7% and manufactured a false "the two grids agree to 4-11%" result, which
+  was then cited as evidence the grid choice was harmless. The two grids
+  **do** agree on the solution - see the corrected note in "F335M measured
+  run" - but the star-match median legitimately degrades 1.8x on the fine grid
+  because the i2d is upsampled there. Native figures escape the error by luck
+  (0.0629 ~ the i2d scale, +0.0%), which is why the bad numbers were all
+  cross-check numbers.
 - **A `s_region` polygon is a cheap containment pre-check and it is per
   observation, not per filter.** The cache at `out/grid_inputs/ngc3324_obs.csv`
-  holds one row per MAST *product group*, and its `filters` column shows both
-  `F335M` and `F444W` with the same footprint to 5 decimal places - the two
-  filters are one pointing. That is the first thing to check when deciding
-  whether a new filter needs a new grid, and it costs no file I/O.
+  holds one row per MAST *product group*, and its `filters` column shows `F335M`,
+  `F444W` and `F444W;F470N` with footprints agreeing to ~0.2" - the three are
+  one pointing. That is the first thing to check when deciding whether a new
+  filter needs a new grid, and it costs no file I/O. **Watch the units**:
+  degrees to arcsec is x**3600**, not x1e6. Getting that wrong turned a 0.24"
+  disagreement into a bogus 67.7", which looked alarming enough to threaten the
+  shared-grid decision. It is also only a pre-check - `F470N`'s s_region is
+  0.24" from F335M's (3.9 px) and its per-frame bboxes land 2 px off F335M's
+  box, so "identical to the pixel" is true of F335M/F444W but *not* of F470N.
 - **`load_grid` returns the shape as `(ny, nx)`, and the grid file has no
   `NAXIS1`/`NAXIS2`.** `load_grid` reads `GRDNX`/`GRDNY` and returns
   `(nax2, nax1)`, so `shape[0]` is the *height*. The grid is ny 15895 x

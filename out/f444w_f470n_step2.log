@@ -1,0 +1,31 @@
+step 2 gauge probe filter=F444W;F470N
+i2d shape 4179 x 7058, measured scale 0.062936 arcsec/px
+match radius 0.3 arcsec = 4.77 i2d px
+  6312 stars in the i2d
+
+per (visit x detector) raw frame WCS vs official i2d, in i2d px:
+  visit detector   n_match  rate    dx_med    dy_med   |offset|    scatter
+  v1   nrcalong    380    95%   -0.0075   +0.0091   0.0600    0.0235
+  v1   nrcblong    396    99%   +0.0179   -0.0043   0.0481    0.0223
+  v2   nrcalong    391    98%   +0.1415   -0.1838   0.2399    0.0513
+  v2   nrcblong    393    98%   +0.2323   -0.2951   0.3756    0.0479
+  v3   nrcalong    388    97%   +0.2055   -0.1607   0.2610    0.0614
+  v3   nrcblong    391    98%   +0.2229   -0.2072   0.3100    0.0476
+  v4   nrcalong    382    96%   +0.3209   -0.3930   0.5071    0.0327
+  v4   nrcblong    385    96%   +0.3175   -0.3788   0.5011    0.0518
+
+per-visit summary across the 2 detector(s) (median of medians):
+  visit   dx_med   dy_med  |offset|   spread(max-min)  n_det
+  v1    +0.0052   +0.0024   0.0058      0.0119        2   (internal 0.0144)
+  v2    +0.1869   -0.2395   0.3038      0.1357        2   (internal 0.0718)
+  v3    +0.2142   -0.1840   0.2823      0.0490        2   (internal 0.0248)
+  v4    +0.3192   -0.3859   0.5008      0.0060        2   (internal 0.0073)
+
+anchor by per-visit median: visit 1 (0.0058 i2d px = 0.00036 arcsec)
+
+visit-to-anchor separation, i.e. the raw inter-visit pointing error this mosaic must absorb:
+  v1: 0.0000 i2d px = 0.00000 arcsec   <- anchor
+  v2: 0.3025 i2d px = 0.01904 arcsec
+  v3: 0.2800 i2d px = 0.01762 arcsec
+  v4: 0.4994 i2d px = 0.03143 arcsec
+  worst visit: v4 at 0.4994 px raw
