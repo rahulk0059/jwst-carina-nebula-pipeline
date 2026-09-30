@@ -12,12 +12,15 @@ from astropy.io import fits
 from astropy.wcs import WCS
 
 from jwst_stack import (
+    color as color_mod,
+    color_build as color_build_mod,
     download,
     gauge as gauge_mod,
     grid as grid_mod,
     io,
     grouping,
     plotting,
+    psf as psf_mod,
     stack as stack_mod,
 )
 
@@ -315,6 +318,86 @@ def build_parser() -> argparse.ArgumentParser:
     p_grid.add_argument("--proposal-id", type=int, default=download.PROPOSAL_ID)
     p_grid.add_argument("--refresh-cache", action="store_true")
     p_grid.add_argument("--show", action="store_true")
+
+    p_cpsf = sub.add_parser(
+        "color-psf",
+        help="Measure the per-channel stellar FWHM on the colour grid.",
+    )
+    p_cpsf.add_argument("--outdir", default="out")
+    p_cpsf.add_argument("--grid", default="out/grid.fits")
+    p_cpsf.add_argument(
+        "--channels",
+        nargs="+",
+        default=None,
+        help="channel names (default: all six, e.g. 'F444W;F470N' needs quoting)",
+    )
+    p_cpsf.add_argument("--tiles", type=int, default=24, help="tiles to sample; 0 = all")
+    p_cpsf.add_argument("--tile-px", type=int, default=512)
+    p_cpsf.add_argument("--stars", type=int, default=200, help="stars to fit per channel")
+    p_cpsf.add_argument("--separation-px", type=float, default=12.0)
+    p_cpsf.add_argument(
+        "--no-refine",
+        action="store_true",
+        help="skip the second detection pass at the measured width",
+    )
+    p_cpsf.add_argument(
+        "--out", default="out/color_channels.json", help="channel-record JSON to write"
+    )
+
+    p_creg = sub.add_parser(
+        "color-register",
+        help="Solve the cross-filter star match of every channel to the reference.",
+    )
+    p_creg.add_argument("--outdir", default="out")
+    p_creg.add_argument("--grid", default="out/grid.fits")
+    p_creg.add_argument("--channels", nargs="+", default=None)
+    p_creg.add_argument("--reference", default=color_mod.COLOR_REFERENCE)
+    p_creg.add_argument("--match-radius-px", type=float, default=4.0)
+    p_creg.add_argument("--negligible-px", type=float, default=0.25)
+    p_creg.add_argument("--tile-px", type=int, default=1024)
+    p_creg.add_argument(
+        "--out", default="out/color_registration_f200w.json", help="JSON to write"
+    )
+
+    p_cbuild = sub.add_parser(
+        "color-build",
+        help="Write the RGB cube and the three feature panels by streaming.",
+    )
+    p_cbuild.add_argument("--outdir", default="out")
+    p_cbuild.add_argument(
+        "--grid", default="out/grid.fits", help="the shared colour grid (WCS + GRDNX/GRDNY)"
+    )
+    p_cbuild.add_argument("--channels", nargs="+", default=None)
+    p_cbuild.add_argument("--row-px", type=int, default=color_build_mod.DEFAULT_ROW_PX)
+    p_cbuild.add_argument(
+        "--no-previews", action="store_true", help="skip the PNG previews"
+    )
+    p_cbuild.add_argument(
+        "--verbose", action="store_true", help="print a row counter while streaming"
+    )
+    p_cbuild.add_argument(
+        "--out",
+        default="out/color_channels.json",
+        help="channel-record JSON to merge the plan and cost into",
+    )
+
+    p_cviewer = sub.add_parser(
+        "color-viewer",
+        help="Export the band-last RGB cube to a standard band-first viewer cube.",
+    )
+    p_cviewer.add_argument(
+        "--rgb",
+        default="out/color_rgb.fits",
+        help="the band-last (ny, nx, 3) cube built by color-build",
+    )
+    p_cviewer.add_argument(
+        "--out",
+        default="out/color_rgb_viewer.fits",
+        help="band-first (3, ny, nx) cube for viewers (Siril, ...)",
+    )
+    p_cviewer.add_argument(
+        "--verbose", action="store_true", help="print each band plane as it is written"
+    )
 
     return parser
 
@@ -669,6 +752,181 @@ def run_compare(args: argparse.Namespace) -> None:
     print(f"wrote {diff_path.with_suffix('.fits')} and .png")
 
 
+def _color_grid(args: argparse.Namespace):
+    """The colour grid WCS/shape, taken from ``--grid`` rather than a mosaic."""
+    from astropy.wcs import WCS
+
+    with fits.open(args.grid, memmap=True) as hdul:
+        wcs = WCS(hdul[0].header)
+        shape = (int(hdul[0].header["GRDNY"]), int(hdul[0].header["GRDNX"]))
+    scale = float(wcs.proj_plane_pixel_scales()[0].to_value("arcsec"))
+    return wcs, shape, scale
+
+
+def run_color_psf(args: argparse.Namespace) -> None:
+    started = time.time()
+    paths = color_mod.mosaic_paths(args.outdir, args.channels)
+    _, grid_shape, grid_scale = _color_grid(args)
+    print(
+        f"color-psf: {len(paths)} channels, grid {grid_shape[0]}x{grid_shape[1]} "
+        f"at {grid_scale:.4f} arcsec/px"
+    )
+    n_tiles = None if args.tiles == 0 else args.tiles
+    results, first = psf_mod.measure_channels_fwhm(
+        paths,
+        grid_scale_arcsec=grid_scale,
+        n_tiles=n_tiles,
+        tile_px=args.tile_px,
+        target_stars=args.stars,
+        separation_px=args.separation_px,
+        refine=not args.no_refine,
+    )
+    print()
+    if args.no_refine:
+        print(psf_mod.format_fwhm_summary(results))
+    else:
+        print("pass 1 (fixed 3 px detection hint):")
+        print(psf_mod.format_fwhm_summary(first))
+        print()
+        print("pass 2 (re-detected at the pass-1 width):")
+        print(psf_mod.format_fwhm_summary(results))
+    unmeasured = [n for n, r in results.items() if not r.measured]
+    path = psf_mod.write_fwhm_json(
+        args.out,
+        results,
+        first_pass=None if args.no_refine else first,
+        grid_path=args.grid,
+        grid_shape=grid_shape,
+    )
+    print()
+    print(f"wrote {path}  ({time.time() - started:.1f} s)")
+    if unmeasured:
+        print(f"NOT MEASURED: {', '.join(unmeasured)}")
+        raise SystemExit(1)
+
+
+def run_color_register(args: argparse.Namespace) -> None:
+    started = time.time()
+    _, grid_shape, _ = _color_grid(args)
+
+    def progress(name: str, tiles: int) -> None:
+        print(f"  {name}: {tiles} covered tiles, detecting stars...")
+
+    solutions, scale = color_mod.measure_cross_filter_registration(
+        args.outdir,
+        channels=args.channels,
+        reference=args.reference,
+        tile_px=args.tile_px,
+        match_radius_px=args.match_radius_px,
+        negligible_px=args.negligible_px,
+        progress=progress,
+    )
+    print()
+    print(color_mod.format_registration_summary_color(solutions, scale))
+    significant = [s.channel for s in solutions if not s.is_reference and not s.negligible]
+    print()
+    if significant:
+        print(
+            f"WARNING: {', '.join(significant)} exceed the "
+            f"{args.negligible_px} px threshold and would need a cross-filter "
+            "shift before compositing"
+        )
+    else:
+        print(
+            f"no cross-filter shift applied: every median is below "
+            f"{args.negligible_px} px"
+        )
+    path = color_mod.write_color_registration_json(
+        args.out,
+        solutions,
+        reference=args.reference,
+        grid_scale_arcsec=scale,
+        grid_path=args.grid,
+        match_radius_px=args.match_radius_px,
+        negligible_px=args.negligible_px,
+    )
+    print(f"wrote {path}  ({time.time() - started:.1f} s)")
+
+
+def run_color_build(args: argparse.Namespace) -> None:
+    """Plan and run the tiled colour build, then record it in the JSON."""
+    started = time.time()
+    _, grid_shape, grid_scale = _color_grid(args)
+    print(
+        f"color-build: grid {grid_shape[0]}x{grid_shape[1]} at "
+        f"{grid_scale:.4f} arcsec/px, row bands of {args.row_px} rows"
+    )
+
+    from jwst_stack.color_build import build_color, plan_color
+
+    plan = plan_color(args.outdir, args.grid, channels=args.channels)
+    print(
+        f"  plan: shared lo {plan.lo:.3g} hi {plan.hi:.3g} "
+        f"softening {plan.softening:.3g}; backgrounds: "
+        + ", ".join(f"{n}={b:.3g}" for n, b in plan.backgrounds.items())
+    )
+    est = (3 + len([s for s in plan.channels if s.is_feature])) * (
+        plan.shape[0] * plan.shape[1] * 2
+    )
+    print(f"  products total ~{est / 1e9:.2f} GB actual on-disk")
+
+    result = build_color(
+        args.outdir,
+        plan,
+        row_px=args.row_px,
+        previews=not args.no_previews,
+        progress=args.verbose,
+    )
+    for p in result.products + result.previews:
+        print(f"  wrote {p}")
+    print(
+        f"  covered {result.covered_pixels:,} px, {result.n_tiles} row bands, "
+        f"peak RSS {result.peak_rss_gb:.2f} GB, "
+        f"wall {time.time() - started:.1f} s"
+    )
+    path = color_build_mod.write_color_build_json(args.out, result)
+    print(f"wrote {path}  ({time.time() - started:.1f} s)")
+
+
+def run_color_viewer(args: argparse.Namespace) -> None:
+    """Export the band-last cube to a band-first viewer cube and verify it.
+
+    The band-last ``color_rgb.fits`` is the pipeline's internal format; several
+    viewers (Siril is the named one) expect the conventional band-first layout.
+    The export writes ``(3, ny, nx)`` with ``NAXIS3=3`` and verifies what it
+    wrote: the on-disk shape and headers, an exact band-by-band equality against
+    the source cube, and the physical size (== the header's claim once FITS
+    2880-byte block padding is added).
+    """
+    from astropy.io import fits
+    import numpy as np
+
+    from jwst_stack.color_build import export_rgb_viewer
+
+    viewer = export_rgb_viewer(args.rgb, args.out, progress=args.verbose)
+    with fits.open(viewer) as out:
+        hdr = out[0].header
+        data = np.asarray(out[0].data)
+    with fits.open(args.rgb) as src:
+        cube = np.asarray(src[0].data)
+        bands = [src[0].header.get(f"BAND{i}") for i in (1, 2, 3)]
+    ny, nx = cube.shape[:2]
+    equal = [bool(np.array_equal(data[b], cube[:, :, b])) for b in range(3)]
+    print(
+        f"wrote {viewer}: shape {data.shape} (3, {ny}, {nx}), "
+        f"NAXIS1={hdr['NAXIS1']} NAXIS2={hdr['NAXIS2']} NAXIS3={hdr['NAXIS3']}, "
+        f"CTYPE3={hdr.get('CTYPE3')}"
+    )
+    for b, name in enumerate(["R", "G", "B"]):
+        print(f"  band {b + 1} {name}={bands[b]}: {data.shape[1]}x{data.shape[2]} "
+              f"stored plane, matches source {equal[b]}")
+    if not all(equal):
+        raise SystemExit("color-viewer: band mismatch against the source cube")
+    print(f"  on-disk {viewer.stat().st_size:,} B "
+          f"(expected {hdr['NAXIS1'] * hdr['NAXIS2'] * hdr['NAXIS3'] * 2:,} B "
+          f"+ header, block-padded)")
+
+
 def main(argv: list[str] | None = None) -> None:
     args = build_parser().parse_args(argv)
     if args.command == "inspect":
@@ -694,6 +952,14 @@ def main(argv: list[str] | None = None) -> None:
         raise SystemExit(download.run_verify(args))
     elif args.command == "grid":
         grid_mod.run_grid(args)
+    elif args.command == "color-psf":
+        run_color_psf(args)
+    elif args.command == "color-register":
+        run_color_register(args)
+    elif args.command == "color-build":
+        run_color_build(args)
+    elif args.command == "color-viewer":
+        run_color_viewer(args)
 
 
 if __name__ == "__main__":

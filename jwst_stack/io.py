@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Iterator, Sequence
@@ -168,6 +169,49 @@ def mixed_pupils(exposures: Iterable[CalExposure]) -> list[str]:
     bandpasses, which is exactly the failure the long-wave ``F444W`` set invites.
     """
     return sorted({e.pupil.strip().upper() for e in exposures if e.pupil})
+
+
+def read_json_section(path: str | Path, key: str) -> dict | None:
+    """Return one top-level section of a JSON file, or None if absent.
+
+    The colour artifacts are written by several independent steps - the FWHM
+    measurement, the cross-filter registration, then the stretch itself - and
+    each owns exactly one top-level key.  Reading the section back is how a
+    later step checks that the earlier one actually ran, rather than assuming a
+    file exists because it was supposed to.
+    """
+    file = Path(path)
+    if not file.exists():
+        return None
+    try:
+        payload = json.loads(file.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    section = payload.get(key)
+    return section if isinstance(section, dict) else None
+
+
+def update_json_section(path: str | Path, key: str, payload: dict) -> Path:
+    """Merge *payload* into top-level *key* of the JSON at *path*.
+
+    Existing top-level keys are preserved, so the colour channel record can be
+    built up one step at a time instead of every writer rewriting the whole
+    file.  Keys inside *payload* replace wholesale rather than merging, so a
+    re-run can never leave a stale sub-field behind.
+    """
+    file = Path(path)
+    file.parent.mkdir(parents=True, exist_ok=True)
+    document: dict = {}
+    if file.exists():
+        try:
+            loaded = json.loads(file.read_text(encoding="utf-8"))
+        except ValueError:
+            loaded = {}
+        if isinstance(loaded, dict):
+            document = loaded
+    document[key] = payload
+    file.write_text(json.dumps(document, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return file
 
 
 def mask_scaled_sci(sci: np.ndarray, dq: np.ndarray | None) -> np.ndarray:
