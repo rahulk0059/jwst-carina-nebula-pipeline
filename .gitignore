@@ -31,6 +31,28 @@ out/stage2_cal_manifest.csv
 out/stage2_i2d_manifest.csv
 out/verify_report.txt
 
+# Per-filter manifests and run transcripts: same category as the three
+# above, and same C:\data\... local_path column. 172 further references.
+# Each is regenerable by re-running the command that wrote it, and each
+# is strictly redundant with something already tracked:
+#   - out/f090w_*_manifest.csv        `verify` output (disk truth).
+#   - out/f090w_compare.log           console rendering of the TRACKED
+#   - out/f187n_compare.log           out/f187n_all_detectors_mosaic_vs_*.json,
+#                                    at lower precision than the JSON.
+#   - out/f187n_download*.log         transcripts of `download --stage2`;
+#   - out/f187n_i2d_fetch.log         the incidents they document (the
+#                                    MAST DNS burst, the i2d read timeout)
+#                                    are written up in AGENTS.md, which is
+#                                    where a reader should get the mechanism,
+#                                    not a scroll of per-file ok/error lines.
+out/f090w_cal_manifest.csv
+out/f090w_combined_i2d_manifest.csv
+out/f090w_compare.log
+out/f187n_compare.log
+out/f187n_download.log
+out/f187n_download2.log
+out/f187n_i2d_fetch.log
+
 # Raw/derived data lives outside the repo (C:\data, 77 GB): raw MAST
 # downloads and the derived products built from them. Ignored
 # defensively in case such a root is ever created inside the tree.
