@@ -20,6 +20,8 @@ from astropy.io import fits
 from astropy.table import Table
 from astropy.wcs import WCS
 
+from jwst_stack.units import arcsec_to_deg
+
 from jwst_stack import download
 
 DEFAULT_PIXEL_SCALE_ARCSEC = 0.031
@@ -90,7 +92,7 @@ def build_grid_wcs(
     pad_px: int = DEFAULT_PAD_PX,
 ) -> tuple[WCS, tuple[int, int]]:
     """North-up TAN WCS covering *footprint* plus padding, and its shape."""
-    scale_deg = pixel_scale_arcsec / 3600.0
+    scale_deg = arcsec_to_deg(pixel_scale_arcsec)
     nax1 = int(np.ceil((footprint.ra_max - footprint.ra_min) / scale_deg)) + 2 * pad_px
     nax2 = int(np.ceil((footprint.dec_max - footprint.dec_min) / scale_deg)) + 2 * pad_px
     shape = (nax2, nax1)
@@ -179,8 +181,8 @@ def summarize_grid(
     pixel_scale_arcsec: float,
 ) -> str:
     ny, nx = shape
-    extent_deg_x = nx * pixel_scale_arcsec / 3600.0
-    extent_deg_y = ny * pixel_scale_arcsec / 3600.0
+    extent_deg_x = arcsec_to_deg(nx * pixel_scale_arcsec)
+    extent_deg_y = arcsec_to_deg(ny * pixel_scale_arcsec)
     lines = [
         "common output grid (fixed, from MAST observation footprints)",
         f"  pixel scale : {pixel_scale_arcsec:.4f} arcsec/px",

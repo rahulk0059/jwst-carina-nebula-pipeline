@@ -30,6 +30,7 @@ from astropy.io import fits
 
 from jwst_stack.io import CalExposure, mask_scaled_sci
 from jwst_stack.register import detect_stars, match_stars
+from jwst_stack.units import I2D_PX, px_to_arcsec
 from jwst_stack.validation import open_i2d
 
 #: NIRCam samples its PSF at roughly 2-3 px FWHM in *every* channel, so this is
@@ -404,7 +405,7 @@ def format_gauge_report(result: GaugeResult, *, filter_label: str = "") -> str:
         lines.append(
             f"anchor by per-visit median: visit {result.anchor_visit} "
             f"({anchor.offset_median:.4f} i2d px "
-            f"= {anchor.offset_median * result.i2d_scale_arcsec:.5f} arcsec)"
+            f"= {px_to_arcsec(anchor.offset_median, result.i2d_scale_arcsec, I2D_PX):.5f} arcsec)"
         )
         lines.append("")
         lines.append(
@@ -416,7 +417,7 @@ def format_gauge_report(result: GaugeResult, *, filter_label: str = "") -> str:
             mark = "   <- anchor" if visit == result.anchor_visit else ""
             lines.append(
                 f"  v{visit}: {sep:.4f} i2d px "
-                f"= {sep * result.i2d_scale_arcsec:.5f} arcsec{mark}"
+                f"= {px_to_arcsec(sep, result.i2d_scale_arcsec, I2D_PX):.5f} arcsec{mark}"
             )
         if len(result.visits) > 1:
             worst = max(

@@ -33,6 +33,8 @@ from astropy.stats import sigma_clip
 from scipy.ndimage import shift as ndi_shift
 from scipy.spatial import cKDTree
 
+from jwst_stack.units import GRID_PX, px_label, px_to_arcsec
+
 _DEFAULT_FWHM_PX = 3.0
 _DEFAULT_MATCH_RADIUS_ARCSEC = 0.1
 _DEFAULT_BG_SIGMA = 3.0
@@ -316,9 +318,17 @@ def write_registration_json(
 
 
 def format_registration_summary(result: RegistrationResult) -> str:
-    """Human-readable summary for the terminal."""
+    """Human-readable summary for the terminal.
+
+    The offsets are in output-grid pixels, so the grid scale is the one that
+    converts them; the basis is stated once rather than left to be inferred.
+    """
     lines = [f"registration (reference = {result.reference})"]
     lines.append(f"  pixel scale: {result.pixel_scale_arcsec:.4f} arcsec/px")
+    lines.append(
+        f"  basis      : {px_label(GRID_PX)} (convert with the scale above, "
+        "never an i2d scale)"
+    )
     for f in result.frames:
         flag = "" if f.n_matched >= _ABSOLUTE_MIN_MATCHES else "  (few matches, WCS kept)"
         lines.append(
@@ -328,7 +338,8 @@ def format_registration_summary(result: RegistrationResult) -> str:
             f"| bg {f.background_offset:+9.4f}{flag}"
         )
     lines.append(
-        f"  median |shift| = {result.median_shift_px:.4f} px, "
+        f"  median |shift| = {result.median_shift_px:.4f} px "
+        f"= {px_to_arcsec(result.median_shift_px, result.pixel_scale_arcsec, GRID_PX):.5f} arcsec, "
         f"mean residual rms = {result.mean_residual_rms_px:.3f} px"
     )
     return "\n".join(lines)
@@ -337,3 +348,9 @@ def format_registration_summary(result: RegistrationResult) -> str:
 #: against the official i2d, which is the same nearest-neighbour operation, and
 #: should not have to reach into this module's private.
 match_stars = _match_stars
+
+#: Public alias for :func:`_solve_translation`, for the same reason: the
+#: cross-filter colour match in :mod:`jwst_stack.color` needs the identical
+#: robust translation estimator so its numbers are comparable with the per-frame
+#: shifts written to ``registration.json``.
+solve_translation = _solve_translation

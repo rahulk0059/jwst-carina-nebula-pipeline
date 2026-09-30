@@ -41,6 +41,7 @@ from jwst_stack.mosaic import (
     tile_sub_wcs,
 )
 from jwst_stack.register import detect_stars
+from jwst_stack.units import I2D_PX, format_px, px_label
 
 DEFAULT_TILE_PX = 1024
 DEFAULT_HALO_PX = 24
@@ -58,6 +59,8 @@ class ValidationResult:
     i2d_path: str
     shape: tuple[int, int]
     i2d_shape: tuple[int, int]
+    i2d_scale_arcsec: float
+    grid_scale_arcsec: float
     overlap_pixels: int
     mosaic_fraction: float
     i2d_fraction: float
@@ -136,16 +139,27 @@ class ValidationResult:
             f"  RMS               : {f(self.clean_rms, ' MJy/sr')}",
             "",
             "star position offsets",
+            f"  basis             : {px_label(I2D_PX)} @ "
+            f"{self.i2d_scale_arcsec:.6f} arcsec/px (do not convert these with "
+            f"the {self.grid_scale_arcsec:.6f} arcsec/grid_px scale)",
             f"  stars mine / i2d  : {self.stars_mosaic} / {self.stars_i2d}",
             f"  matched           : {self.matched_stars}",
-            f"  median dx, dy     : {f(self.star_dx_median, ' px')} , "
-            f"{f(self.star_dy_median, ' px')}",
-            f"  median |offset|   : {f(self.star_offset_median, ' px')}",
-            f"  offset MAD        : {f(self.star_offset_mad, ' px')}",
-            f"  offset 16-84 pct  : {f(self.star_offset_p16)} / {f(self.star_offset_p84)}",
-            f"  rms dx, dy        : {f(self.star_dx_rms, ' px')} , "
-            f"{f(self.star_dy_rms, ' px')}",
-            f"  within 0.5 px     : {100 * self.star_nominal_frac:.1f}%",
+            f"  median dx         : "
+            f"{format_px(self.star_dx_median, self.i2d_scale_arcsec, I2D_PX)}",
+            f"  median dy         : "
+            f"{format_px(self.star_dy_median, self.i2d_scale_arcsec, I2D_PX)}",
+            f"  median |offset|   : "
+            f"{format_px(self.star_offset_median, self.i2d_scale_arcsec, I2D_PX)}",
+            f"  offset MAD        : "
+            f"{format_px(self.star_offset_mad, self.i2d_scale_arcsec, I2D_PX)}",
+            f"  offset 16-84 pct  : "
+            f"{format_px(self.star_offset_p16, self.i2d_scale_arcsec, I2D_PX)} / "
+            f"{format_px(self.star_offset_p84, self.i2d_scale_arcsec, I2D_PX)}",
+            f"  rms dx, dy        : "
+            f"{format_px(self.star_dx_rms, self.i2d_scale_arcsec, I2D_PX)} , "
+            f"{format_px(self.star_dy_rms, self.i2d_scale_arcsec, I2D_PX)}",
+            f"  within 0.5 px     : {100 * self.star_nominal_frac:.1f}% "
+            f"({self.star_nominal_frac * self.i2d_scale_arcsec:.5f} arcsec)",
             "",
             f"  diff values used  : {self.exact_values:,}"
             + (" (subsampled)" if self.subsampled else " (exact)"),
@@ -348,6 +362,11 @@ def validate_mosaic(
         shape = (int(header["NAXIS2"]), int(header["NAXIS1"]))
         mine = hdul[0].data
     official, i2d_wcs, i2d_shape = _open_i2d(i2d_path)
+    #: Both scales are needed to label the star offsets honestly: the match runs
+    #: in i2d pixel space, so the i2d scale is the one that converts it, and the
+    #: grid scale is recorded only so the report can name the trap explicitly.
+    i2d_scale_arcsec = float(i2d_wcs.proj_plane_pixel_scales()[0].to_value("arcsec"))
+    grid_scale_arcsec = float(grid_wcs.proj_plane_pixel_scales()[0].to_value("arcsec"))
 
     scratch = Path(scratch_dir) if scratch_dir else outdir
     scratch.mkdir(parents=True, exist_ok=True)
@@ -471,6 +490,8 @@ def validate_mosaic(
         i2d_path=str(i2d_path),
         shape=shape,
         i2d_shape=i2d_shape,
+        i2d_scale_arcsec=i2d_scale_arcsec,
+        grid_scale_arcsec=grid_scale_arcsec,
         overlap_pixels=overlap,
         mosaic_fraction=100.0 * overlap / (shape[0] * shape[1]),
         i2d_fraction=100.0 * overlap / (i2d_shape[0] * i2d_shape[1]),
