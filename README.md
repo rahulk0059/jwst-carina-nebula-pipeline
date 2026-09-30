@@ -1,5 +1,78 @@
 # jwst_stack
 
+![NGC 3324 in RGB — F444W (R), F200W (G), F090W (B)](out/color_rgb.png)
+
+*NGC 3324 (Carina Nebula) from JWST NIRCam program 2731. 640 calibrated
+exposures across six filters, stacked independently and validated against
+MAST's own drizzle products. R = F444W, G = F200W, B = F090W.*
+
+An independent astrometric reduction pipeline for JWST NIRCam. It
+reprojects Level-2 exposures onto a shared WCS grid, registers them against
+each other by star matching, sigma-clips and combines them into deep mosaics,
+and measures what it achieved by comparing its own stars to NASA's published
+`*_i2d.fits` products.
+
+The point is the **measurement**. Every number below is a residual against an
+external reference, not a self-consistency score — which is what makes the
+failures interesting rather than hidden.
+
+## Results
+
+Median stellar offset between this pipeline's mosaics and the official MAST
+combined `i2d` for each filter, from 5,400–5,900 matched stars:
+
+| filter | frames | median offset | in arcsec | within 0.5 px |
+|--------|--------|---------------|-----------|--------------|
+| F187N   | 160 | **0.0647 px** | 0.00202" | 99.3% |
+| F200W   | 160 | **0.0730 px** | 0.00228" | 99.0% |
+| F444W;F470N | 40 | **0.0818 px** | 0.00515" | 98.4% |
+| F335M   | 40 | **0.1000 px** | 0.00629" | 98.7% |
+| F444W   | 40 | **0.1034 px** | 0.00650" | 98.4% |
+| F090W   | 160 | 0.1384 px | 0.00432" | 78.5% |
+
+The three short-wave filters are at their native 0.031"/px; the three
+long-wave ones at 0.063"/px, which is why their pixels are ~2x larger and
+their arcsec accuracy ~2.5–3x worse. F090W is the outlier in pixels because
+of a per-detector pointing term described below.
+
+Each filter's gauge is measured independently against that filter's own `i2d`
+before solving. That is deliberate: the correction is *relative*, so gauging it
+to the internal consensus of the visits would drive the reported residual to
+~0 by construction and destroy the evidence.
+
+## Two things worth reading about
+
+**There is a ~0.05 px floor that is not noise.** Splitting the F200W and F187N
+residuals into a per-detector step and an intra-detector field term accounts for
+roughly half of each, and the two independently measured leftovers — 0.0508 px
+and 0.0485 px — agree to 5% across filters differing 5x in brightness. That
+consistency says systematic, not scatter, but the cause is not characterised.
+Candidates are the per-star centroid floor and PSF-difference bias against the
+drizzle. It is the largest open term in the project.
+
+**A 0.79 px "grid convention difference" was our own bug.** The first mosaic
+sat 0.79 px from the official i2d. That was plausible enough to accept as a
+drizzle-convention offset for a round. It was wrong: the per-group registration
+registered each `(visit, detector)` group against its own first exposure, so
+nothing ever compared one visit to another, and 0.81 px of inter-visit pointing
+error passed straight into the mosaic. The within-visit result looked excellent
+throughout, which is exactly what made it hard to see — a pipeline that is
+self-consistent and globally wrong is the failure mode this project is
+structured to catch. Fixing it required a second cross-visit alignment stage,
+and it is why the gauge is now measured against an external reference.
+
+Neither finding is a solved problem. Both are recorded in full, with the
+numbers that constrain them, in `AGENTS.md`.
+
+---
+
+## Technical detail
+
+Everything below is the working reference: what the code does, how to run it,
+and the traps. The pipeline is described first, then the full command reference.
+
+### Original scope
+
 Stack JWST NIRCam calibrated exposures (`*_cal.fits`, Level 2) into a single
 deeper image per visit. Frames are reprojected onto a common grid by WCS, then
 fine-aligned to each other by **photutils star registration** (translation-only,
@@ -8,7 +81,13 @@ sub-pixel). Use `--no-register` to reproduce the pure-WCS behaviour.
 Built for program **2731** (NGC 3324, Carina Nebula), NIRCam **F200W**,
 detector **nrca1**, 20 exposures = 4 visits x 5 dithered frames.
 
-## Data expectations
+That was the starting point — one filter, one detector, one visit stack. The
+sections below are that original pipeline; the six-filter, 640-exposure,
+all-detector results at the top of this file are where it ended up, via the
+Stage 4 `mosaic` and Phase 4 colour work described under
+[Full 8-detector mosaic](#full-8-detector-mosaic-stage-4) and in `AGENTS.md`.
+
+### Data expectations
 
 - Files named `jw02731*_nrca1_cal.fits`, one per subfolder under the input
   directory.
@@ -19,7 +98,7 @@ detector **nrca1**, 20 exposures = 4 visits x 5 dithered frames.
 - The files are already dark-subtracted, flat-fielded and flux-calibrated.
   **No darks or flats are applied.**
 
-## Install
+### Install
 
 ```
 python -m venv .venv
@@ -29,7 +108,7 @@ python -m venv .venv
 Requirements: `numpy`, `astropy`, `reproject`, `scipy`, `photutils`,
 `matplotlib`, `pytest`. The heavy `jwst` package is **not** required.
 
-## Usage
+### Usage
 
 ```
 .\.venv\Scripts\python -m jwst_stack.cli <command> [options]
@@ -105,7 +184,7 @@ The registration solve is cached in `out\mosaic_registration.json`, so re-runnin
 the build reuses it. Pass `--recompute-registration` to redo it. `--plan-only`
 prints tiles, scratch size, frame counts and free disk without touching disk.
 
-## Stack behaviour
+### Stack behaviour
 
 - Each exposure is masked to `NaN` where the DQ `DO_NOT_USE` bit (bit 0) is
   set or the value is `NaN`/`inf`, then reprojected onto a common plain-TAN
@@ -136,7 +215,7 @@ prints tiles, scratch size, frame counts and free disk without touching disk.
 - Memory: one 2048x2048 SCI image is held at a time, plus its reprojected
   copy; never all 20 frames.
 
-## Geometry of this dataset
+### Geometry of this dataset
 
 The five dithers within a visit are large (~20 arcsec RA / ~25 arcsec Dec in
 a ~64 arcsec field), so per-visit depth runs from 2 to 5 frames. The four
@@ -149,7 +228,7 @@ form **two groups** on the sky:
 There is no single all-20 region of uniform coverage; `group` reports the
 exact numbers.
 
-## WCS accuracy note
+### WCS accuracy note
 
 `reproject` here uses the FITS-header WCS (`RA---TAN-SIP`, order 4), which is
 the flattened approximation of the true NIRCam distortion model that the
@@ -218,7 +297,7 @@ If sub-pixel *distortion* accuracy across the full frame still matters, the
 gwcs is available from the `ASDF` extension but requires `jwst` or
 `stdatamodels` to load it; that is a deliberate, optional upgrade.
 
-## Tests
+### Tests
 
 ```
 .\.venv\Scripts\python -m pytest -q tests
@@ -244,7 +323,7 @@ preview path, and that a rebuild truncates its products instead of appending
 to a stale file, plus the export of the band-first `(3, ny, nx)` viewer cube.
 **294 tests, all offline, no FITS data required.
 
-## Layout
+### Layout
 
 ```
 jwst_stack/
