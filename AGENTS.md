@@ -591,8 +591,8 @@ If it is ever attempted, the diagnostic to re-run afterwards is
   `test_item_failed_treats_only_ok_and_skipped_as_success`,
   `test_run_stage2_returns_nonzero_when_a_file_fails`,
   `test_run_download_returns_nonzero_when_a_file_fails`.
-- **MAST drops DNS after a burst of ~20-45 files.** Fetching F187N, the first
-  46 files arrived, then every subsequent `urlopen` failed with
+- **MAST drops DNS after a burst of ~20-50 files.** Fetching F187N, the first
+  ~50 files arrived, then every subsequent `urlopen` failed with
   `[Errno 11001] getaddrinfo failed` until the process was re-run some minutes
   later; `mast.stsci.edu` resolved fine the whole time. It is transient, not a
   permissions or URL problem, and a single long run cannot finish. Retry the
