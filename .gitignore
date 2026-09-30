@@ -23,6 +23,14 @@ out/mosaic_cov.u16
 # astropy warning dumps (~1 MB of regenerable noise)
 out/*.err
 
+# `verify` output: machine-local disk truth, regenerated on demand.
+# These three carry this machine's absolute data roots (C:\data\...) in
+# every row, which is noise in a public repo and nothing else. `verify`
+# rebuilds them from a live scan; never hand-edited, so nothing is lost.
+out/stage2_cal_manifest.csv
+out/stage2_i2d_manifest.csv
+out/verify_report.txt
+
 # Raw/derived data lives outside the repo (C:\data, 77 GB): raw MAST
 # downloads and the derived products built from them. Ignored
 # defensively in case such a root is ever created inside the tree.
