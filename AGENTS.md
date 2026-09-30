@@ -1417,7 +1417,8 @@ from real headers rather than assumed.
 > *dimensionless* quantity, so `sky_pixel_scale_arcsec` then raises
 > `UnitConversionError`. The values above come from
 > `io.read_cal_exposure`, which correctly reads the **SCI** extension header -
-> use that path, and do not hand-build the WCS.
+> use that path, and do not hand-build the WCS. This is one of three instances
+> of the general rule in "Gotchas when re-measuring astrometry here".
 
 **The existing grid is not wrong, just 2.029x finer than F335M needs.** It fits
 either way, verified unclamped: on the 0.031 grid F335M spans y 75..15849,
@@ -1893,6 +1894,44 @@ better than either peer.
   long-wave rerun: this is a safety feature, not an obstacle.
 
 ### Gotchas when re-measuring astrometry here
+
+- **Never derive a scale, a shape or an axis order by reading a FITS header
+  yourself. Go through the loader that owns the file.** This is the one rule
+  under which the other bullets in this section sit, and it exists because the
+  same shortcut has now gone wrong three separate times, in three different
+  ways, **none of which raised anything**:
+  1. `CDELT1` is absent from the SCI headers (the WCS is the `CDi_j` matrix),
+     so `header["CDELT1"]` is `None`, and building from the *primary* header -
+     which has no WCS at all - makes `proj_plane_pixel_scales()` return a
+     dimensionless quantity and raises `UnitConversionError` deep inside
+     astropy. Use `io.sky_pixel_scale_arcsec(exp)`, which reads the **SCI**
+     extension via `io.read_cal_exposure`.
+  2. The i2d's `PRIMARY` header is `NAXIS=0` with **no WCS cards whatsoever**,
+     and no extension carries a `CDi_j` matrix either. So
+     `WCS(hdul[0].header).proj_plane_pixel_scales()` returns a
+     **dimensionless `Quantity(1.)`** - no unit at all. The three obvious
+     follow-ups all fail differently, and only one of them raises:
+     `.to_value("arcsec")` raises `UnitConversionError` (good),
+     `float(...)` returns **1.0** silently, and casting to an array and
+     multiplying by 3600 to "make it arcsec" returns **3600.0** silently -
+     wrong by a factor of 115,000. astropy's warning "the WCS transformation
+     has more axes (2) than the image it is associated with (0)" is the
+     tell. The i2d WCS lives in the first 2-D extension, which is what
+     `validation._open_i2d` (public alias `open_i2d`) selects; through it the
+     F090W i2d scale is `0.03122628886927469` "/px.
+  3. `load_grid` returns the shape as `(ny, nx)` from `GRDNX`/`GRDNY`, and the
+     grid file has no `NAXIS1`/`NAXIS2` at all. Unpacking it as `(nx, ny)`
+     makes the filter the grid was *built from* appear not to fit.
+
+  The shared failure mode is that a wrong value looks like a right one:
+  1.0 and 3600.0 are both numbers, `(nx, ny)` is a tuple, `None` is a
+  plausible return. Nothing crashes, so the error surfaces later as a wildly
+  wrong number in a published table rather than as a stack trace.
+  `load_grid(path)[1]`, `open_i2d(path)[1]` and `io.sky_pixel_scale_arcsec(exp)`
+  are the only verified paths, and they are verified because `compare`, `gauge`
+  and `mosaic` all consume their output - anything else is a second,
+  unvalidated implementation of code that already works. When a new file type
+  appears, add a loader and use it; do not reach past one.
 
 - **`_grid_bbox`'s third argument is the GRID shape, and `None` does not mean
   "misses the grid".** The signature is
