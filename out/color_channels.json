@@ -8,7 +8,7 @@
       },
       "covered_pixels": 118483163,
       "n_tiles": 125,
-      "peak_rss_gb": 8.653,
+      "peak_rss_gb": 8.711,
       "previews": [
         "out\\color_rgb.png",
         "out\\color_f187n.png",
@@ -22,7 +22,7 @@
         "out\\color_f470n.fits"
       ],
       "tile_px": 128,
-      "wall_seconds": 479.02
+      "wall_seconds": 310.08
     },
     "plan": {
       "background_policy": "self-referenced per channel (additive, sigma-clipped median)",

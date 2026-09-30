@@ -334,11 +334,27 @@ def _stream_products(outdir, plan, data, rgb_path, feature_path, row_px, progres
     field shows has a partial fringe against F090W/F444W) would survive as
     ``(R, 0, B)`` - bright magenta, two channels' light with the third's
     footprint cut out.  A pixel is therefore zeroed in **all three** bands
-    whenever any one of the RGB mosaics lacks data there, so the composite
-    never shows light from a hole.  Coverage is read from the raw band - a
-    value that is finite and non-zero - not from the stretched result, where a
-    naked 0 is indistinguishable from an uncovered pixel.  The feature panels
-    are single-band below and keep the per-channel fill.
+    whenever any one of the RGB mosaics fails to put light there, so the
+    composite never shows light from a hole or from a band that went black.
+
+    "Fails to put light there" needs two halves, and either alone is wrong.
+    ``np.isfinite(chunk)`` is the mosaic's own coverage indicator: an uncovered
+    pixel is NaN, and ``_to_uint16`` leaves it at 0.  That half alone is not
+    enough, because a *covered* pixel can also write 0 - the shared stretch
+    clips anything below ``lo``, and the real field has saturated cores
+    carrying large negative SCI (-6.6 to -214 MJy/sr) that land exactly there.
+    Such a pixel is genuinely covered and yet renders black, so if coverage
+    were read from the raw band alone it would be left lit in the other two
+    bands and show as a one-colour defect at a star core: 144 such pixels in
+    the shipped field, 22 of them magenta (F200W black, R and B lit) and 122
+    the same fault in the other two bands.
+
+    The fix is ``np.isfinite(chunk) & (written != 0)``, which is the *same*
+    condition ``_to_uint16`` uses to decide what to write.  That is the point:
+    the 0-fill and the coverage mask now agree by construction instead of
+    being two rules that can disagree.  Testing the written value alone would
+    be circular, and dropping the finite test would quietly redefine coverage.
+    The feature panels are single-band below and keep the per-channel fill.
     """
     ny, nx = plan.shape
     table = color.channel_table(outdir)
@@ -366,10 +382,14 @@ def _stream_products(outdir, plan, data, rgb_path, feature_path, row_px, progres
             rgb_cov = np.ones((y1 - y0, nx), dtype=bool)
             for spec in plan.channels:
                 chunk = np.asarray(data[spec.name].sci[y0:y1, :], dtype=float)
-                cov = np.isfinite(chunk) & (chunk != 0)
                 if spec.name == rgb_names[0]:
                     covered += int(np.count_nonzero(np.isfinite(chunk)))
                 written = _to_uint16(_stretch(chunk, plan, spec.name))
+                # A band counts as present only if it actually put light in the
+                # product.  See _stream_products' docstring: the finite test is
+                # the mosaic's own coverage map and the written test is what
+                # catches a covered pixel that the stretch clipped to 0.
+                cov = np.isfinite(chunk) & (written != 0)
                 if spec.is_feature:
                     feat_hdus[spec.name].write(_to_stored_int16(written))
                 else:

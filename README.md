@@ -242,7 +242,7 @@ written as 0, the cross-channel mask (a pixel missing any RGB band is black,
 not magenta), the BZERO 32768 uint16 convention, row-size invariance, the
 preview path, and that a rebuild truncates its products instead of appending
 to a stale file, plus the export of the band-first `(3, ny, nx)` viewer cube.
-**292 tests, all offline, no FITS data required.
+**294 tests, all offline, no FITS data required.
 
 ## Layout
 

@@ -90,7 +90,7 @@ Three things a newcomer must not get wrong:
 To re-check the shipped state from scratch:
 
 ```powershell
-.venv\Scripts\python -m pytest -q tests                      # 292 pass
+.venv\Scripts\python -m pytest -q tests                      # 294 pass
 .venv\Scripts\python -m jwst_stack.cli verify --outdir out   # exits 1 by design, see note
 .venv\Scripts\python -m jwst_stack.cli compare --tiled `
   --stack out\f187n_all_detectors_mosaic.fits `
@@ -192,15 +192,14 @@ written misaligned, a `(y, nx, 3)` one is exact - verified empirically), and
 with `BZERO 32768` (an arithmetic shift, not `.view(np.int16)`, which silently
 writes 32768 where 0 was meant - same trap as the mosaics' COVERAGE
 extension). Per-channel holes are written as 0, and the RGB cube additionally
-**masks across channels**: a pixel where *any* of the three RGB mosaics has no
-data is zeroed in all three bands, so a footprint fringe cannot render as
-magenta (R+B with G=0). Coverage for the mask is read from the raw band -
-finite and non-zero - not from the stretched result, where a bare 0 is
-indistinguishable from an uncovered pixel. Pinned by
-`test_rgb_masks_any_missing_channel_to_black`.
+**masks across channels**: a pixel where *any* of the three RGB mosaics fails to
+put light there is zeroed in all three bands, so neither a footprint fringe nor a
+band that went black can render as magenta (R+B with G=0). Pinned by
+`test_rgb_masks_any_missing_channel_to_black` and
+`test_a_covered_negative_core_that_clips_to_zero_is_masked_not_magenta`.
 
 **Memory - verified, not estimated.** Peak working set for the shipped run was
-8.65 GB (runs vary 7.96-8.75 GB), and that peak is **not** caused by previews: a
+8.71 GB (runs vary 7.96-8.75 GB), and that peak is **not** caused by previews: a
 full `--no-previews`
 build peaks at 8.66 GB, so previews add ~0.05 GB. The mechanism is Windows
 working-set accounting of the six memmapped 1.41 GB mosaics - as the stream
@@ -213,23 +212,72 @@ this was an artifact of a 512-row probe that had only faulted a fraction of the
 files; plan around ~9 GB available for a full build on this grid, regardless of
 the preview flag.
 
-**A residual 22-pixel magenta exception survives the mask, and it is the
-same trap arriving by a different route.** The mask reads coverage as
-`isfinite(chunk) & (chunk != 0)` (`jwst_stack/color_build.py`), which is
-correct for a *hole* but not for a strongly negative value: at a
-saturated F200W core that band carries a large negative SCI (-6.6 to
--214 MJy/sr), which is finite and non-zero, so the pixel counts as
-covered and the cross-channel mask does not fire - but the stretch clips
-it below `lo` and writes 0. So G reads 0 while R and B stay saturated.
-Measured on the shipped cube: **22 such pixels out of 351,756,350**
-(6e-8), all isolated single pixels at saturated F200W cores, none in the
-fringe box. The trap is the one named above - a bare 0 is
-indistinguishable from an uncovered pixel - reached by clipping instead
-of by NaN, so a coverage test on the raw value cannot catch it. Cosmetic
-at this scale, and the documented 70,360-pixel fringe is unaffected.
-Fixing it properly means testing coverage on the *written* value, which
-would need the 0-fill and the coverage mask to agree by construction
-rather than by two different rules.
+**The coverage mask needed two halves, and one of them is a trap that
+produced a wrong image rather than an error.** The mask fires where "a band
+wrote 0", and those pixels arrive by two opposite routes. A *hole* is a NaN
+that was never covered. A *clipped core* is finite, genuinely covered data
+that the shared stretch drove below `lo`: the real field has saturated
+NIRCam cores carrying large negative SCI (-6.6 to -214 MJy/sr), and the
+shipped `lo` of -6.45 MJy/sr clips them to exactly 0.
+
+The first version tested only the second half of the wrong kind - coverage
+as `isfinite(chunk) & (chunk != 0)` on the **raw** band - on the reasoning
+that a bare 0 in the stretched result is indistinguishable from an uncovered
+pixel. That reasoning was right about not testing the stretched value, and
+wrong about what followed from it. The `!= 0` clause is not a coverage test
+at all: a *covered* pixel whose SCI is exactly 0.0 is legitimate data that
+stretches to mid-range, so the clause discards good pixels, while a covered
+pixel at -214 MJy/sr is just as finite-and-nonzero as a real one and yet
+writes 0. The mask therefore counted those cores as covered, let them go
+black, and left R and B lit.
+
+**Measured on the shipped field, this was 144 pixels, not the 22 first
+seen** - 22 magenta (F200W black, R and B lit) and **122 the identical fault
+in the other two bands** (89 at clipped F090W cores, 32 at F444W, 1 both),
+all at saturated star cores, all isolated single pixels. Only the magenta
+subset was obvious by eye, which is exactly why the count had to be
+measured from the rule rather than trusted from the picture.
+
+The fix is `isfinite(chunk) & (written != 0)` (`jwst_stack/color_build.py`):
+the mosaic's own NaN coverage map *and* the value that was actually written.
+That is the whole point - the 0-fill and the coverage mask now agree **by
+construction** instead of being two rules that can disagree. Testing the
+written value alone would be circular, and dropping the finite test would
+quietly redefine coverage.
+
+**Verified on the rebuilt cube, not just in a test.** The rule implies a
+crisp global invariant - a pixel is either masked (all three bands 0) or
+present in all three (all three > 0), and no pixel may be a mix, because a
+mix *is* `(R, 0, B)`. Across all 351,756,350 pixels: **0 mixed, 0 magenta**,
+233,400,896 masked and 118,355,454 present, which partition the grid exactly.
+The masked total is `233,400,752 + 144`, matching a count taken from the
+source mosaics *before* the change. An independent re-derivation of the
+whole cube from the source mosaics - my own asinh stretch, not
+`color_build`'s - reproduces the shipped file **byte-exact on all
+1,055,269,050 band values**.
+
+**The fringe is untouched, and that was checked rather than assumed.** Both
+defects are "a band that wrote 0", so fixing the clipped-core route could
+plausibly have un-masked the hole route. It did not: of the 144 newly
+masked pixels, **0** are holes - every one is covered in all three bands -
+and the documented fringe still shows 0 magenta with the F200W-holed pixels
+black. Pinned in both directions by
+`test_a_hole_and_a_clipped_core_are_masked_without_touching_normal_pixels`,
+which puts a hole and a clipped core in one scene and asserts both stay
+black while a star core survives in all three bands. `covered_pixels` in
+`out/color_channels.json` is also unchanged at 118,483,163, because the
+reported coverage is still the NaN map and not the mask.
+
+**The rule is pinned at its exact extent, not just on a sample.**
+`test_rgb_bands_are_r_f444w_g_f200w_b_f090w` still proves band identity by
+recomputing each band from its own source, but compares on the pixels where
+the mask is not in play and additionally asserts the mask fires on the union
+of the bands that wrote 0 and nowhere else. It has to be split that way
+because the `tiny` fixture's dynamic range is narrow enough that `lo`, a
+1st percentile of a background-dominated sample, legitimately clips a few
+percent of ordinary background pixels to 0 - a property of the fixture, not
+of the real field, where the fix moves 144 pixels in 351 million. Both new
+tests fail against the old rule, which is what makes them regressions.
 
 **A bright magenta vertical streak in the top of the RGB composite was
 investigated and is a footprint artifact, not a star.** The composite's
@@ -280,7 +328,7 @@ Nothing below is needed to use what is shipped. Pick one.
    in the project and it is not physical noise. Candidates are the per-star
    centroid floor and PSF-difference bias against the drizzle; neither is
    characterised. This is measurement work, not a code fix.
-4. **Pause for productization.** The code is at a natural stopping point: 292
+4. **Pause for productization.** The code is at a natural stopping point: 294
    offline tests, no linter, six validated end-to-end results, and a git
    baseline. If the goal
    becomes a reusable tool rather than a set of measurement results, the
@@ -292,7 +340,7 @@ Nothing below is needed to use what is shipped. Pick one.
 - venv: `.venv\Scripts\python` (Windows / PowerShell 7)
 - Run everything through the venv interpreter, e.g.
   `.venv\Scripts\python -m jwst_stack.cli <command>`
-- Tests: `.venv\Scripts\python -m pytest -q tests` (292 tests, all offline)
+- Tests: `.venv\Scripts\python -m pytest -q tests` (294 tests, all offline)
 - There is **no** linter or type-checker configured (no ruff/mypy/flake8 in the
   venv, no `pyproject.toml`/`setup.cfg`). `ast.parse` + the test suite are the
   correctness gate.

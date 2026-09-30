@@ -174,7 +174,7 @@ def test_rgb_bands_are_r_f444w_g_f200w_b_f090w(tiny):
     channel is exact, and the six channels have different gradients, so a swap
     cannot survive it.
     """
-    outdir, grid, _, _ = tiny
+    outdir, grid, shape, _ = tiny
     plan = plan_color(outdir, grid, tile_px=16)
     result = build_color(outdir, plan, row_px=16, previews=False)
     with fits.open(result.products[0]) as hdul:
@@ -184,10 +184,29 @@ def test_rgb_bands_are_r_f444w_g_f200w_b_f090w(tiny):
         assert header["BAND3"] == "F090W"
         cube = np.asarray(hdul[0].data)
     table = color.channel_table(outdir)
-    for index, name in enumerate(["F444W", "F200W", "F090W"]):
+    names = ["F444W", "F200W", "F090W"]
+    expected = {}
+    for name in names:
         source = np.asarray(fits.getdata(outdir / table[name].mosaic), dtype=float)
-        expected = color_build._to_uint16(color_build._stretch(source, plan, name))
-        assert np.array_equal(cube[:, :, index], expected), f"band {index} is not {name}"
+        expected[name] = color_build._to_uint16(color_build._stretch(source, plan, name))
+
+    # Band identity is compared where the cross-channel mask is not in play,
+    # which is everywhere except the NaN hole and the few percent of background
+    # pixels that this fixture's narrow dynamic range clips to 0.  Those are the
+    # mask working as specified, so the two are separated rather than conflated.
+    keep = np.ones(shape, dtype=bool)
+    for name in names:
+        keep &= expected[name] > 0
+    for index, name in enumerate(names):
+        assert np.array_equal(
+            cube[:, :, index][keep], expected[name][keep]
+        ), f"band {index} is not {name}"
+
+    # The mask is exactly the union of the bands that wrote 0 - no more, no
+    # less.  A band swap would show up here as a nonzero pixel outside it.
+    assert not keep.all(), "this fixture must exercise the mask at all"
+    for index in range(3):
+        assert np.all(cube[:, :, index][~keep] == 0)
 
 
 def test_the_build_subtracts_each_channels_own_background(tiny):
@@ -278,6 +297,120 @@ def test_rgb_masks_any_missing_channel_to_black(tiny, tmp_path):
     covered = (slice(3 * ny // 4, ny), slice(3 * nx // 4, nx))
     for i in range(3):
         assert np.any(cube[covered + (i,)] > 0)
+
+
+def _clipped_core_scene(tiny, tmp_path, name, hole=True):
+    """Copy the `tiny` scene, punching one covered-but-clipped core in F200W.
+
+    The pixel is *finite*, so the mosaic's own coverage map says it has data,
+    but it sits far below the shared ``lo`` so the stretch clips it to 0.  That
+    is the real saturated-core failure: the shipped field carries 144 such
+    pixels, 22 of them rendering magenta because F200W went black while R and
+    B stayed lit.  The value is derived from the plan's own ``lo`` rather than
+    hard-coded, so the test cannot drift away from the stretch it is testing.
+    """
+    outdir, grid, shape, _ = tiny
+    ny, nx = shape
+    plan = plan_color(outdir, grid, tile_px=16)
+    py, px = ny // 2, nx // 2          # covered by all three: the hole is :12,:16
+
+    out = tmp_path / name
+    out.mkdir()
+    for spec in CHANNELS:
+        data = np.asarray(fits.getdata(outdir / spec.mosaic))
+        if spec.name == "F200W":
+            data = data.copy()
+            data[py, px] = plan.backgrounds["F200W"] + plan.lo - 1.0
+            if hole:
+                data[: ny // 4, : nx // 4] = np.nan
+        with fits.open(outdir / spec.mosaic) as src:
+            header = src[0].header
+        fits.PrimaryHDU(data=data, header=header).writeto(
+            out / spec.mosaic, overwrite=True
+        )
+    _write_grid(out / "grid.fits", shape)
+    return out, plan, (py, px), shape
+
+
+def test_a_covered_negative_core_that_clips_to_zero_is_masked_not_magenta(
+    tiny, tmp_path
+):
+    """A covered core the stretch clips to 0 must be black, not a one-colour dot.
+
+    The regression: coverage used to be read as ``isfinite(chunk) & (chunk != 0)``
+    from the *raw* band, on the reasoning that a naked 0 in the stretched result
+    is indistinguishable from an uncovered pixel.  But ``_to_uint16`` already
+    writes 0 for anything the stretch clips, and a saturated core carries a
+    large negative SCI that clips.  So the pixel was counted as covered, went
+    black, and left R and B lit - 22 magenta pixels in the shipped cube.  The
+    mask now keys on the value that was actually written.
+    """
+    outdir, plan, (py, px), _ = _clipped_core_scene(tiny, tmp_path, "clipped")
+    g = 1    # CHANNELS order is F444W, F200W, F090W, so index 1 is the G band
+
+    # Establish the defect first: F200W is covered, writes 0, and the other two
+    # bands are lit.  That is (R, 0, B) - magenta - had the old rule survived.
+    f200w = np.asarray(fits.getdata(outdir / CHANNELS[g].mosaic))
+    assert np.isfinite(f200w[py, px]), "the core must be covered, not a hole"
+    assert color_build._to_uint16(
+        color_build._stretch(f200w, plan, "F200W")
+    )[py, px] == 0, "the core must clip to 0, or this is not the regression"
+    for index, name in ((0, "F444W"), (2, "F090W")):
+        lit = color_build._to_uint16(
+            color_build._stretch(
+                np.asarray(fits.getdata(outdir / CHANNELS[index].mosaic)), plan, name
+            )
+        )
+        assert lit[py, px] > 0, f"{name} must be lit at the clipped core"
+
+    result = build_color(outdir, plan, row_px=16, previews=False)
+    with fits.open(result.products[0]) as hdul:
+        cube = np.asarray(hdul[0].data)
+
+    assert np.all(cube[py, px, :] == 0), "a clipped core must be black in all bands"
+    # The mask is per pixel, not a blob: a star core is far above lo in every
+    # band, so it survives.  (A plain neighbour is not a safe probe here - this
+    # fixture's dynamic range is tiny, so lo is a 1st percentile of a
+    # background-dominated sample and a few percent of ordinary background
+    # pixels clip to 0 on their own.)
+    star = np.unravel_index(np.nanargmax(f200w), f200w.shape)
+    sy, sx = int(star[0]), int(star[1])
+    assert np.all(cube[sy, sx, :] > 0), "the mask must not have swallowed a star"
+
+
+def test_a_hole_and_a_clipped_core_are_masked_without_touching_normal_pixels(
+    tiny, tmp_path
+):
+    """The coverage fix must not un-mask the footprint fringe it shares a rule with.
+
+    Both defects are "a band that wrote 0", and they arrive by opposite routes:
+    a hole is a NaN that was never covered, a clipped core is finite data that
+    the stretch drove below zero.  Fixing the second must leave the first
+    masked, or the magenta streak this mask exists to prevent comes straight
+    back.
+    """
+    outdir, plan, (py, px), shape = _clipped_core_scene(
+        tiny, tmp_path, "both", hole=True
+    )
+    ny, nx = shape
+    hole = (slice(0, ny // 4), slice(0, nx // 4))
+
+    result = build_color(outdir, plan, row_px=16, previews=False)
+    with fits.open(result.products[0]) as hdul:
+        cube = np.asarray(hdul[0].data)
+
+    assert np.all(cube[py, px, :] == 0), "the clipped core stays black"
+    assert np.all(cube[hole] == 0), "the NaN hole stays black, not (R, 0, B)"
+
+    # Neither case was fixed by blanking the product, and neither over-masked
+    # its neighbours: a star core is far above lo in all three bands.
+    g = 1
+    f200w = np.asarray(fits.getdata(outdir / CHANNELS[g].mosaic))
+    star = np.unravel_index(np.nanargmax(f200w), f200w.shape)
+    sy, sx = int(star[0]), int(star[1])
+    for index in range(3):
+        assert np.any(cube[..., index] > 0)
+        assert cube[sy, sx, index] > 0, f"band {index} lost a star core"
 
 
 def test_the_uint16_products_round_trip_through_fits(tiny):
