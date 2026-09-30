@@ -17,7 +17,10 @@ The heavy `jwst` package is **not** required. WCS comes from the `SCI` header
 ## Current status
 
 **All six NIRCam products are built and validated - three 160-frame short-wave
-and all three long-wave bandpasses. Nothing is in progress.** This is the
+and all three long-wave bandpasses. The Phase 4 colour builder is shipped**
+(RGB F444W/F200W/F090W cube + F187N/F335M/F470N feature panels, plus a
+Gaussian FWHM and cross-filter registration record) - see "Phase 4: the colour
+products" below. Nothing is in progress.** This is the
 cold-start summary; the sections after it hold the evidence, and the
 per-filter sections are the authority for their own numbers.
 
@@ -87,7 +90,7 @@ Three things a newcomer must not get wrong:
 To re-check the shipped state from scratch:
 
 ```powershell
-.venv\Scripts\python -m pytest -q tests                      # 168 pass
+.venv\Scripts\python -m pytest -q tests                      # 292 pass
 .venv\Scripts\python -m jwst_stack.cli verify --outdir out   # exits 1 by design, see note
 .venv\Scripts\python -m jwst_stack.cli compare --tiled `
   --stack out\f187n_all_detectors_mosaic.fits `
@@ -105,6 +108,151 @@ every `missing` row left is a per-exposure i2d this project does not use. For a
 zero exit code, scope the gate to what you actually fetched, e.g.
 `verify --require F187N --require-kind CAL --outdir out`, or
 `verify --require "F444W;F470N" --outdir out` for the narrowband run.
+
+## Phase 4: the colour products
+
+**Shipped: `out/color_rgb.fits` (2.11 GB), `out/color_f187n.fits`,
+`out/color_f335m.fits`, `out/color_f470n.fits` (0.70 GB each) plus PNG
+previews, on the shared 0.031" grid (15895 x 22130, same as `out/grid.fits`).**
+Built with one command:
+
+```powershell
+.venv\Scripts\python -m jwst_stack.cli color-build `
+  --outdir out --grid out\grid.fits --out out\color_channels.json
+```
+
+The three steps are reproducible: `color-psf` (stellar FWHM per channel),
+`color-register` (cross-filter star offsets, all below the 0.25 px threshold so
+no shift is applied), then `color-build`. Records live in
+`out/color_channels.json` (FWHM + build plan/cost) and
+`out/color_registration_f200w.json`. The RGB preview (`out/color_rgb.png`) is a
+**single merged true-colour render** of the three reduced bands (titled from
+the cube's `BAND1/2/3` headers), not three side-by-side panels; the feature
+PNGs are single-band intensity images.
+
+**A viewer-ready companion cube is exported separately:
+`out/color_rgb_viewer.fits`.** The pipeline's internal cube is band-last
+`(ny, nx, 3)`, which is what `fits.StreamingHDU` lands row bands in exactly,
+but it is not the layout Siril-style tools expect. `color-viewer` copies the
+finished cube into the conventional band-first `(3, ny, nx)` RGB FITS layout -
+`NAXIS1=nx, NAXIS2=ny, NAXIS3=3`, `CTYPE3='BAND'`, each band one contiguous
+plane, stored as int16 under `BZERO 32768` - and verifies what it wrote
+(shape, headers, per-band equality against the source, on-disk size). Nothing
+about `color_rgb.fits` changes; the export streams one full-width plane at a
+time so it never materialises the cube, and it unlinks the target first so a
+re-export replaces rather than appends (the `StreamingHDU` gotcha below).
+Pinned by `test_export_viewer_is_band_first_and_round_trips`.
+
+**The honesty decisions** (module `jwst_stack/color.py`, enforced in
+`color_build.py`):
+
+- **R=F444W;CLEAR, G=F200W, B=F090W**, unchanged channels - no sharpening, no
+  rescaling between channels. `F187N`, `F335M` and `F444W;F470N` are separate
+  single-band panels, never blended into the RGB.
+- **Self-referenced background per channel**: each channel is subtracted
+  against its *own* `source_free_level` (additive, sigma-clipped median, no i2d
+  consulted), so the mosaic-vs-i2d background differences are irrelevant to
+  colour balance. Pinned by a pedestal-invariance test through the tiled
+  builder.
+- **One shared lo/hi/softening** pooled over all six channels
+  (`lo=-6.45 hi=23.0`, `a=2.94` on the shipped data). A per-channel min-max
+  would rescale a faint channel onto a bright one; a shared stretch preserves
+  relative brightness, which is what makes the RGB honest. The plan records
+  which channel's residual gradient occupies more of the range, because with a
+  shared stretch that is exactly what determines apparent colour.
+- **Cross-filter shifts are not applied**: all five medians came out below the
+  0.25 px threshold, so `correction_applied` is false.
+
+**Measured values**, read straight out of the two shipped records
+(`out/color_channels.json` and `out/color_registration_f200w.json`), so
+these cannot drift from the artifacts they summarise. Each channel
+detects on its own mosaic, so the star counts differ per channel
+(9,945-29,506); the widths match the Phase 1 report within 0.2-1.8%.
+
+| channel | FWHM (px / arcsec) | cross-filter median shift (grid px) | n_detected |
+|---------|--------------------|------------------------------------|------------|
+| F090W | 1.94 / 0.0602 | 0.0485 | 14,981 |
+| F187N | 2.35 / 0.0728 | 0.0539 | 20,921 |
+| F200W | 2.43 / 0.0752 | 0 (reference) | 29,506 |
+| F335M | 4.45 / 0.1379 | 0.0337 | 11,431 |
+| F444W;CLEAR | 5.16 / 0.1600 | 0.0563 | 10,420 |
+| F444W;F470N | 5.42 / 0.1680 | 0.1694 (below the 0.25 px threshold; dx -0.1244, dy -0.1149, so **not** dy-only) | 9,945 |
+
+Every one of the five medians is below the 0.25 px threshold, which is
+what leaves `correction_applied: false`. F470N is the largest at 0.1694
+but still sub-threshold, and both its components are comparable.
+
+**How the build streams.** The grid is 351.8 Mpx, so `color_build.py` never
+holds a channel: statistics are measured once over the memmapped mosaics
+(`plan_color`, ~70 s), then products are written a full-width row band at a
+time via `fits.StreamingHDU`. The RGB cube is **band-last `(ny, nx, 3)`**:
+astropy's `StreamingHDU` corrupts partial 3-D writes (a `(3, y, nx)` band is
+written misaligned, a `(y, nx, 3)` one is exact - verified empirically), and
+`BAND1/2/3` header cards record the order. Products are uint16 stored as int16
+with `BZERO 32768` (an arithmetic shift, not `.view(np.int16)`, which silently
+writes 32768 where 0 was meant - same trap as the mosaics' COVERAGE
+extension). Per-channel holes are written as 0, and the RGB cube additionally
+**masks across channels**: a pixel where *any* of the three RGB mosaics has no
+data is zeroed in all three bands, so a footprint fringe cannot render as
+magenta (R+B with G=0). Coverage for the mask is read from the raw band -
+finite and non-zero - not from the stretched result, where a bare 0 is
+indistinguishable from an uncovered pixel. Pinned by
+`test_rgb_masks_any_missing_channel_to_black`.
+
+**Memory - verified, not estimated.** Peak working set for the shipped run was
+8.65 GB (runs vary 7.96-8.75 GB), and that peak is **not** caused by previews: a
+full `--no-previews`
+build peaks at 8.66 GB, so previews add ~0.05 GB. The mechanism is Windows
+working-set accounting of the six memmapped 1.41 GB mosaics - as the stream
+sweeps the full array, each file's pages fault into the process working set and
+are not evicted on a high-RAM machine, so current RSS rises monotonically with
+rows swept (0.2 -> 2.9 -> 4.3 -> 5.7 -> 7.0 -> 8.4 GB across the run;
+6 x 1.41 = 8.5 GB of mapped bytes + ~0.2 GB heap). Heap allocation stays
+~0.2-0.3 GB the whole time. The "streaming alone ~3 GB" figure that precedes
+this was an artifact of a 512-row probe that had only faulted a fraction of the
+files; plan around ~9 GB available for a full build on this grid, regardless of
+the preview flag.
+
+**A residual 22-pixel magenta exception survives the mask, and it is the
+same trap arriving by a different route.** The mask reads coverage as
+`isfinite(chunk) & (chunk != 0)` (`jwst_stack/color_build.py`), which is
+correct for a *hole* but not for a strongly negative value: at a
+saturated F200W core that band carries a large negative SCI (-6.6 to
+-214 MJy/sr), which is finite and non-zero, so the pixel counts as
+covered and the cross-channel mask does not fire - but the stretch clips
+it below `lo` and writes 0. So G reads 0 while R and B stay saturated.
+Measured on the shipped cube: **22 such pixels out of 351,756,350**
+(6e-8), all isolated single pixels at saturated F200W cores, none in the
+fringe box. The trap is the one named above - a bare 0 is
+indistinguishable from an uncovered pixel - reached by clipping instead
+of by NaN, so a coverage test on the raw value cannot catch it. Cosmetic
+at this scale, and the documented 70,360-pixel fringe is unaffected.
+Fixing it properly means testing coverage on the *written* value, which
+would need the 0-fill and the coverage mask to agree by construction
+rather than by two different rules.
+
+**A bright magenta vertical streak in the top of the RGB composite was
+investigated and is a footprint artifact, not a star.** The composite's
+strongest magenta pixels all had `G=0.000` exactly with R,B>0 - i.e. R+B with
+no green. Measured against the mosaics, F200W has a partial-coverage fringe at
+grid x ~7730-7860, y ~13600-14450 (column coverage drops to ~41% at
+x~7750-7820 and F200W's data ends entirely at y~14550 there) while F090W and
+F444W cover the same pixels, so an additive per-channel fill rendered magenta
+where G's mosaic had a hole. There is a genuine bright star at grid
+(13311, 7714) - detected in all three channels by the same DAOStarFinder the
+FWHM/registration steps use (F200W flux 25502, F444W 10118, F090W 9096) - but
+it is NOT the streak: F200W is present and brightest at the star, so it does
+not render magenta; it sits just west of the F200W edge. The builder now masks
+any pixel missing an RGB channel to black (see above), so the fringe renders
+black instead of magenta. Shipped and verified on the rebuilt cube: 0 magenta
+pixels anywhere in the fringe box, the F200W-holed pixels black (70,360 of
+110,500), and the star at (13311, 7714) fully present in all three bands. The
+per-star coordinate catalogs are not persisted (the colour JSONs keep FWHM and
+aggregate stats only), so this was established by re-running the detector on
+the mosaic slabs, not by reading a list. Chasing this masked the real bug for a
+while: the mask ran correctly, but the rebuild was **appending** to the stale
+product file instead of replacing it, so every reader kept showing the old
+unmasked cube - see the `StreamingHDU` gotcha below.
 
 ## What's next
 
@@ -132,7 +280,7 @@ Nothing below is needed to use what is shipped. Pick one.
    in the project and it is not physical noise. Candidates are the per-star
    centroid floor and PSF-difference bias against the drizzle; neither is
    characterised. This is measurement work, not a code fix.
-4. **Pause for productization.** The code is at a natural stopping point: 168
+4. **Pause for productization.** The code is at a natural stopping point: 292
    offline tests, no linter, six validated end-to-end results, and a git
    baseline. If the goal
    becomes a reusable tool rather than a set of measurement results, the
@@ -144,7 +292,7 @@ Nothing below is needed to use what is shipped. Pick one.
 - venv: `.venv\Scripts\python` (Windows / PowerShell 7)
 - Run everything through the venv interpreter, e.g.
   `.venv\Scripts\python -m jwst_stack.cli <command>`
-- Tests: `.venv\Scripts\python -m pytest -q tests` (168 tests, all offline)
+- Tests: `.venv\Scripts\python -m pytest -q tests` (292 tests, all offline)
 - There is **no** linter or type-checker configured (no ruff/mypy/flake8 in the
   venv, no `pyproject.toml`/`setup.cfg`). `ast.parse` + the test suite are the
   correctness gate.
@@ -162,6 +310,10 @@ Nothing below is needed to use what is shipped. Pick one.
 | `verify` | compare the data roots against the MAST plan, rebuild manifests |
 | `grid` | build/describe the fixed common output grid |
 | `mosaic` | Stage 4: all 8 detectors x 4 visits on the fixed grid, tiled |
+| `color-psf` | per-channel stellar FWHM on the colour grid (Phase 4) |
+| `color-register` | cross-filter star-match solve vs F200W (Phase 4) |
+| `color-build` | tiled colour products: RGB cube + F187N/F335M/F470N panels (Phase 4) |
+| `color-viewer` | export the band-last cube as a standard band-first `(3, ny, nx)` viewer cube (Phase 4) |
 
 `inspect`, `group`, `stack`, `mosaic` and `gauge` accept `--detector` /
 `--filter` / `--pupil`. **Always pass them.** The cal root holds all 8 NIRCam
@@ -440,6 +592,19 @@ If it is ever attempted, the diagnostic to re-run afterwards is
   drops products whose name has no detector/exposure components. Use
   `--stage2` (now filter-aware) or `build_i2d_items` when you need the
   combined product.
+- **`fits.StreamingHDU` does not truncate a file that already exists.** It
+  appends the stream after whatever the file already holds, so a second
+  `color-build` does **not** replace the earlier cube - the header still
+  describes the *first* block and every FITS reader silently keeps seeing the
+  stale first build while the new data piles up invisibly behind it. In
+  production the shipped `out/color_rgb.fits` grew 1x -> 2x -> 3x -> 4x across
+  three rebuilds; the masked "output" looked identical to the unmasked one and
+  the streak never left the composite even though the mask was running (its
+  pixels were in the appended blocks). `build_color` now unlinks its outputs
+  before streaming, so a rebuild really is a rebuild. Pinned by
+  `test_rebuild_overwrites_its_products_instead_of_appending`. Also verify
+  rebuilds by their on-disk size: a reader reports the file "good" while it is
+  already 2x the size the header claims.
 - **Batched `read` calls can scramble file labels.** Read one file per call, or
   use `inspect` / `ast` from Python when the exact on-disk text matters.
 
@@ -1757,3 +1922,4 @@ better than either peer.
   point 40-260" apart and share no like-for-like dither cells, so mean CRVAL
   per visit mixes pointing with dither geometry. Star matching is the only
   route.
+

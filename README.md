@@ -234,8 +234,15 @@ integer and sub-pixel shifts, and checks the JSON and text reports.
 frames: tile iteration, bounding boxes, the registration shift sign and NaN
 masking, sigma-clip combination, the pre-flight plan, JSON round-tripping, the
 cross-visit translation solve (gauge choice, edge rejection, known-offset
-recovery), and the tiled validation metrics. 129 tests, all offline, no FITS
-data required.
+recovery), and the tiled validation metrics. `tests/test_color_build.py`
+covers the Phase 4 tiled colour builder end to end on synthetic mosaics: the
+measured backgrounds and shared stretch, band identity (each RGB band is the
+stretch of exactly its own channel), per-channel background subtraction, holes
+written as 0, the cross-channel mask (a pixel missing any RGB band is black,
+not magenta), the BZERO 32768 uint16 convention, row-size invariance, the
+preview path, and that a rebuild truncates its products instead of appending
+to a stale file, plus the export of the band-first `(3, ny, nx)` viewer cube.
+**292 tests, all offline, no FITS data required.
 
 ## Layout
 
@@ -250,7 +257,10 @@ jwst_stack/
   validation.py tiled comparison against the official i2d mosaic
   plotting.py  asinh PNG previews + i2d comparison metrics
   cli.py       argparse front end (inspect | group | stack | compare |
-               grid | mosaic | download | verify)
+               grid | mosaic | download | verify | color-psf |
+               color-register | color-build | color-viewer)
 tests/
-  test_align.py, test_stack.py, test_register.py, test_mosaic.py
+  test_align.py, test_stack.py, test_register.py, test_mosaic.py,
+  test_color.py, test_color_build.py
 ```
+
